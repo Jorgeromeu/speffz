@@ -1,0 +1,197 @@
+/* Design tokens, extracted from the original prototype's inline <style>.
+   One accent color, one dark background — see CLAUDE.md "Colours". */
+:root {
+  --bg: #15181e;
+  --surface: #22262e;
+  --surface-selected: rgba(255, 255, 255, 0.09);
+  --text: #98a0ad;
+  --text-bright: #e8eaef;
+  --text-dim: #6f7784;
+  --text-faint: #565e6b;
+  --accent: #f0b429;
+  --accent-ink: #15181e;
+  /* same hues as the cube's mark rings (render/tiles.ts RING_COLOUR), so
+     got-it/missed reads as the same "correct/wrong" language as the cube */
+  --good: #4bc172;
+  --good-ink: #0d1015;
+  --bad: #e05360;
+  --bad-ink: #fff0f1;
+  --radius-lg: 13px;
+  --radius-md: 9px;
+  --font: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+}
+body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+}
+
+#view {
+  flex: 1 1 0;
+  min-height: 0;
+  width: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* ---- top toggles: corners/edges/arrows/peek ----
+   A floating corner cluster over the canvas, not a dedicated full-width
+   row — the same lesson as the letterInput mode dropdown: a handful of
+   buttons shouldn't reserve their own empty-looking bar. Icon-only turned
+   out too easy to confuse (the corner/edge glyphs are subtly-different
+   grids), and opacity-only on/off was too subtle to read at a glance — so
+   this keeps the label text and switches on/off to the same accent
+   highlight used everywhere else (tabs, net selection), just compact. */
+#top {
+  position: absolute;
+  top: calc(8px + env(safe-area-inset-top));
+  right: 12px;
+  z-index: 5;
+  display: flex;
+  gap: 6px;
+}
+#top button {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  height: 30px;
+  min-height: 0;
+  padding: 0 10px;
+  border-radius: var(--radius-md);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+#top svg {
+  width: 13px;
+  height: 13px;
+  flex: none;
+  display: block;
+}
+
+/* ---- generic buttons ---- */
+button {
+  flex: 1;
+  min-height: 46px;
+  font: inherit;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  color: var(--text);
+  background: var(--surface);
+  border: 0;
+  border-radius: var(--radius-lg);
+}
+button[aria-pressed="true"] {
+  color: var(--accent-ink);
+  background: var(--accent);
+  font-weight: 700;
+}
+
+/* ---- legend: reference rows + face net (learn only) ---- */
+#legend {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  padding: 8px 12px 10px;
+}
+#ref {
+  display: grid;
+  gap: 3px;
+}
+#ref div {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.44em;
+  text-indent: 0.44em;
+}
+
+/* ---- status bar: quiz glyph / prompt / score ---- */
+#status {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 16px 4px;
+  min-height: 44px;
+}
+#glyph {
+  font-size: 30px;
+  font-weight: 700;
+  color: var(--accent);
+  line-height: 1;
+  min-width: 22px;
+}
+#say {
+  flex: 1;
+  font-size: 11.5px;
+  line-height: 1.45;
+  letter-spacing: 0.03em;
+}
+#say b {
+  color: var(--text-bright);
+  font-weight: 700;
+}
+#say.warn b {
+  color: var(--accent);
+}
+#score {
+  font-size: 11px;
+  color: var(--text-dim);
+  letter-spacing: 0.06em;
+}
+
+/* ---- action row (reveal / hit / miss / next, per drill) ---- */
+.row {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 8px;
+  padding: 5px 12px;
+}
+
+/* ---- the letterInput widget (owns its own corner mode dropdown) ---- */
+#answer {
+  flex: 0 0 auto;
+  padding: 4px 12px 6px;
+}
+#answer button {
+  min-height: 40px;
+}
+
+/* ---- tabs ---- */
+#tabs {
+  padding: 6px 12px calc(12px + env(safe-area-inset-bottom));
+}
+#tabs button {
+  min-height: 40px;
+  font-size: 10px;
+  background: transparent;
+}
+#tabs button[aria-selected="true"] {
+  background: var(--surface-selected);
+  color: var(--text-bright);
+  font-weight: 700;
+}
+
+.hide {
+  display: none !important;
+}

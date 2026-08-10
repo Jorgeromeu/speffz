@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Speffz cube — harness</title>
+<link rel="stylesheet" href="/src/style.css" />
+<style>
+  /* style.css locks page scroll/touch for the app shell — the harness is a
+     plain scrollable dev page, not the app, so restore normal behaviour. */
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;overflow:visible;overscroll-behavior:auto;touch-action:auto}
+  body{
+    display:flex;flex-direction:column;height:100vh;
+    background:#15181e;color:#98a0ad;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+    font-size:12px;
+  }
+  /* ---- harness-level tabs: this page is a general UI testing surface,
+     not just the cube. Each pane can be iterated on in isolation. ---- */
+  #harnessTabs{flex:0 0 auto;display:flex;gap:2px;padding:8px;border-bottom:1px solid #22262e}
+  #harnessTabs button{
+    font:inherit;font-size:11px;padding:8px 14px;
+    background:#22262e;color:#98a0ad;border:0;border-radius:6px;cursor:pointer;
+  }
+  #harnessTabs button.active{background:#f0b429;color:#15181e;font-weight:700}
+  .hpane{flex:1;min-height:0;display:flex}
+  .hpane.hide{display:none}
+  #pane-ui{padding:16px;overflow-y:auto;gap:16px}
+
+  #view{flex:1 1 auto;min-width:0;display:block;touch-action:none}
+  #panel{
+    flex:0 0 300px;overflow-y:auto;touch-action:pan-y;padding:10px 12px 40px;
+    border-left:1px solid #22262e;display:flex;flex-direction:column;gap:14px;
+  }
+  h3{margin:0 0 6px;font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#6f7784}
+  section{border-bottom:1px solid #22262e;padding-bottom:12px}
+  label{display:flex;align-items:center;gap:6px;margin:4px 0}
+  input[type="range"]{flex:1}
+  button{
+    font:inherit;font-size:11px;padding:6px 8px;margin:2px 2px 2px 0;
+    background:#22262e;color:#98a0ad;border:0;border-radius:6px;cursor:pointer;
+  }
+  button.active{background:#f0b429;color:#15181e;font-weight:700}
+  button.face{min-width:30px}
+  .row{display:flex;flex-wrap:wrap;gap:2px;margin-bottom:4px}
+  .readout{font-size:11px;color:#565e6b;white-space:pre-wrap;word-break:break-word}
+  #markList div{display:flex;align-items:center;gap:6px;padding:2px 0}
+  #markList button{padding:2px 6px}
+  #consoleLog{max-height:140px;overflow-y:auto;font-size:10px;line-height:1.5}
+  #consoleLog .warn{color:#f0b429}
+  #consoleLog .error{color:#e05360}
+
+  #uiResizeBox{
+    resize:both;overflow:auto;display:flex;
+    width:380px;height:260px;min-width:140px;min-height:120px;max-width:100%;
+    border:1px dashed #565e6b;border-radius:8px;padding:12px;
+  }
+  /* flex chain down to the mounted widget, so its flex:1 sections (the
+     keyboard placeholder, the reveal panel) actually grow into whatever
+     size the box is dragged to, instead of just hugging their own content */
+  #uiAnswerHost{display:flex;flex:1;min-width:0;min-height:0}
+  #uiAnswerHost button{min-width:0}
+  #uiLog{max-width:360px;max-height:220px;overflow-y:auto;font-size:11px;line-height:1.6}
+  #uiLog div{border-bottom:1px solid #22262e;padding:3px 0}
+  #uiLog .correct{color:#4bc172}
+  #uiLog .wrong{color:#e05360}
+</style>
+</head>
+<body>
+<div id="harnessTabs">
+  <button id="htab-cube" class="active" data-tab="cube">cube</button>
+  <button id="htab-ui" data-tab="ui">letter input</button>
+</div>
+
+<div id="pane-cube" class="hpane">
+  <canvas id="view"></canvas>
+  <aside id="panel">
+    <section>
+      <h3>Orientation</h3>
+      <label>az <input id="az" type="range" min="0" max="6.283" step="0.001" /></label>
+      <label>pol <input id="pol" type="range" min="0.15" max="2.99" step="0.001" /></label>
+      <button id="home">home</button>
+      <div class="readout" id="orbitReadout"></div>
+    </section>
+
+    <section>
+      <h3>Labels</h3>
+      <label><input id="showCorner" type="checkbox" checked /> corners</label>
+      <label><input id="showEdge" type="checkbox" checked /> edges</label>
+      <div class="row">
+        <button id="strength-full" class="active" data-strength="full">full</button>
+        <button id="strength-faint" data-strength="faint">faint</button>
+        <button id="strength-off" data-strength="off">off</button>
+      </div>
+      <label><input id="peek" type="checkbox" /> peek</label>
+      <label><input id="arrows" type="checkbox" /> arrows (clockwise order)</label>
+    </section>
+
+    <section>
+      <h3>Turns</h3>
+      <div class="row" id="turnsCW"></div>
+      <div class="row" id="turnsCCW"></div>
+      <button id="scramble">scramble</button>
+      <button id="solve">solve</button>
+      <div class="readout" id="scrambleText"></div>
+    </section>
+
+    <section>
+      <h3>Face highlight — net (single-select)</h3>
+      <div id="faceHighlight"></div>
+    </section>
+
+    <section>
+      <h3>Pool filter — net (multi-select, solo-on-first-tap)</h3>
+      <div id="poolFilter"></div>
+      <div class="readout" id="poolReadout"></div>
+    </section>
+
+    <section>
+      <h3>Ghost marks</h3>
+      <div class="readout">click a sticker on the cube to cycle its mark: none &rarr; ask &rarr; good &rarr; bad &rarr; none</div>
+      <label><input id="revealed" type="checkbox" /> revealed (show ghost letters)</label>
+      <button id="clearMarks">clear marks</button>
+      <div id="markList"></div>
+    </section>
+
+    <section>
+      <h3>Console</h3>
+      <div id="consoleLog"></div>
+    </section>
+  </aside>
+</div>
+
+<div id="pane-ui" class="hpane hide" style="flex-direction:column">
+  <section>
+    <h3>Letter input</h3>
+    <div class="readout">device default mode: <span id="uiDefaultMode"></span> — switch modes via the widget's own corner dropdown</div>
+    <div class="readout" id="uiCurrent"></div>
+    <div class="readout">drag the bottom-right corner to resize the box below</div>
+    <div id="uiResizeBox">
+      <div id="uiAnswerHost"></div>
+    </div>
+  </section>
+
+  <section>
+    <h3>Answer log</h3>
+    <div id="uiLog"></div>
+  </section>
+</div>
+
+<script type="module" src="/src/harness.ts"></script>
+</body>
+</html>

@@ -1,0 +1,1908 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>Speffz cube</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{
+    height:100%;margin:0;overflow:hidden;
+    overscroll-behavior:none;touch-action:none;
+    -webkit-tap-highlight-color:transparent;
+  }
+  body{
+    display:flex;flex-direction:column;
+    height:100vh;height:100dvh;
+    background:#15181e;color:#98a0ad;
+    font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+  #view{flex:1 1 0;min-height:0;width:100%;display:block;touch-action:none}
+
+  #legend{
+    flex:0 0 auto;display:flex;align-items:center;justify-content:center;
+    gap:22px;padding:8px 12px 10px;
+  }
+  #ref{display:grid;gap:3px}
+  #ref div{font-size:13px;font-weight:700;letter-spacing:.44em;text-indent:.44em}
+
+  #status{
+    flex:0 0 auto;display:flex;align-items:center;gap:12px;
+    padding:6px 16px 4px;min-height:44px;
+  }
+  #glyph{font-size:30px;font-weight:700;color:#f0b429;line-height:1;min-width:22px}
+  #say{flex:1;font-size:11.5px;line-height:1.45;letter-spacing:.03em}
+  #say b{color:#e8eaef;font-weight:700}
+  #score{font-size:11px;color:#6f7784;letter-spacing:.06em}
+
+  .row{flex:0 0 auto;display:flex;gap:8px;padding:5px 12px}
+  #tabs{padding:6px 12px calc(12px + env(safe-area-inset-bottom))}
+
+  button{
+    flex:1;min-height:46px;
+    font:inherit;font-size:11px;letter-spacing:.05em;
+    color:#98a0ad;background:#22262e;border:0;border-radius:13px;
+  }
+  button[aria-pressed="true"]{color:#15181e;background:#f0b429;font-weight:700}
+  #tabs button{min-height:40px;font-size:10px;background:transparent}
+  #tabs button[aria-selected="true"]{background:rgba(255,255,255,.09);color:#e8eaef;font-weight:700}
+  #faces{
+    display:grid;
+    grid-template-columns:repeat(4,33px);
+    grid-auto-rows:33px;
+    gap:0;
+  }
+  #faces button{
+    min-height:0;height:100%;flex:none;padding:0;
+    font-size:11px;font-weight:700;
+    border:0;border-radius:0;
+    box-shadow:inset 0 0 0 1px rgba(13,16,21,.35);
+  }
+  #faces button[aria-pressed="true"]{
+    box-shadow:inset 0 0 0 3px #f0b429;
+    position:relative;z-index:1;
+  }
+  #top{
+    flex:0 0 auto;display:flex;gap:8px;
+    padding:calc(8px + env(safe-area-inset-top)) 12px 2px;
+  }
+  #top button{
+    display:flex;align-items:center;justify-content:center;gap:7px;
+    min-height:38px;font-size:10px;
+  }
+  #top svg{width:14px;height:14px;flex:none;display:block}
+  #only{
+    flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:7px 12px 0;
+  }
+  #only > span{
+    font-size:8.5px;font-weight:700;letter-spacing:.16em;
+    text-transform:uppercase;color:#565e6b;
+  }
+  #onlyNet{
+    display:grid;grid-template-columns:repeat(4,26px);grid-auto-rows:19px;gap:0;
+  }
+  #onlyNet button{
+    min-height:0;height:100%;flex:none;padding:0;
+    font-size:9.5px;font-weight:800;border:0;
+    box-shadow:inset 0 0 0 1px rgba(13,16,21,.35);
+    filter:saturate(.09) brightness(.44);
+  }
+  #onlyNet button[aria-pressed="true"]{filter:none}
+  #prog{
+    display:grid;gap:2px;font-size:9.5px;letter-spacing:.02em;color:#6f7784;
+  }
+  #prog b{color:#b9c0cb;font-weight:700}
+  #prog button{
+    margin-top:4px;min-height:24px;font-size:9px;flex:none;
+    border-radius:7px;padding:0 8px;
+  }
+  #seq{
+    flex:0 0 auto;padding:0 16px 5px;min-height:22px;
+    font-size:12px;line-height:1.7;letter-spacing:.14em;color:#e8eaef;
+  }
+  #seq i{
+    color:#6f7784;font-style:normal;font-size:9px;
+    letter-spacing:.06em;margin-right:7px;
+  }
+  #beat{
+    flex:0 0 auto;height:3px;margin:0 16px 6px;border-radius:2px;
+    background:rgba(255,255,255,.08);overflow:hidden;
+  }
+  #beat div{height:100%;width:0;background:#f0b429;border-radius:2px}
+  #seq .scr{
+    font-size:11px;letter-spacing:.02em;color:#98a0ad;
+    line-height:1.5;margin-bottom:2px;
+  }
+  #say.warn b{color:#f0b429}
+  #pad{
+    flex:0 0 auto;display:grid;
+    grid-template-columns:repeat(6,1fr);gap:5px;
+    padding:4px 12px 6px;
+  }
+  #pad button{min-height:36px;font-size:12px;font-weight:700;border-radius:9px}
+  #pad button:disabled{opacity:.35}
+  #bRange{
+    flex:2;min-height:46px;accent-color:#f0b429;
+    background:transparent;border:0;
+  }
+  .hide{display:none!important}
+</style>
+</head>
+<body>
+<div id="top">
+  <button id="bC" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true">
+    <g fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1.6"/><rect x="16" y="2" width="6" height="6" rx="1.6"/><rect x="2" y="16" width="6" height="6" rx="1.6"/><rect x="16" y="16" width="6" height="6" rx="1.6"/></g>
+    <g fill="currentColor" opacity=".22"><rect x="9" y="2" width="6" height="6" rx="1.6"/><rect x="2" y="9" width="6" height="6" rx="1.6"/><rect x="9" y="9" width="6" height="6" rx="1.6"/><rect x="16" y="9" width="6" height="6" rx="1.6"/><rect x="9" y="16" width="6" height="6" rx="1.6"/></g>
+  </svg>corners</button>
+  <button id="bE" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true">
+    <g fill="currentColor"><rect x="9" y="2" width="6" height="6" rx="1.6"/><rect x="2" y="9" width="6" height="6" rx="1.6"/><rect x="16" y="9" width="6" height="6" rx="1.6"/><rect x="9" y="16" width="6" height="6" rx="1.6"/></g>
+    <g fill="currentColor" opacity=".22"><rect x="2" y="2" width="6" height="6" rx="1.6"/><rect x="16" y="2" width="6" height="6" rx="1.6"/><rect x="9" y="9" width="6" height="6" rx="1.6"/><rect x="2" y="16" width="6" height="6" rx="1.6"/><rect x="16" y="16" width="6" height="6" rx="1.6"/></g>
+  </svg>edges</button>
+  <button id="bA" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 12a8 8 0 1 1 3.2 6.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M3 6.5 L4.4 12.6 L10.2 10.4 Z" fill="currentColor"/>
+  </svg>arrows</button>
+  <button id="bPeek" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M1.6 12S5.6 5.2 12 5.2 22.4 12 22.4 12 18.4 18.8 12 18.8 1.6 12 1.6 12Z" fill="none" stroke="currentColor" stroke-width="2.1"/>
+    <circle cx="12" cy="12" r="3.1" fill="currentColor"/>
+  </svg>peek</button>
+</div>
+
+<div class="hide" id="only"><span>pool</span><div id="onlyNet"></div></div>
+
+<canvas id="view"></canvas>
+
+<div id="legend">
+  <div id="ref"></div>
+  <div id="faces"></div>
+  <div id="prog"></div>
+</div>
+
+<div id="status" class="hide">
+  <span id="glyph"></span>
+  <span id="say"></span>
+  <span id="score"></span>
+</div>
+
+<div class="hide" id="beat"><div></div></div>
+
+<div class="hide" id="seq"></div>
+
+<div class="hide" id="pad"></div>
+
+<div class="row hide" id="act">
+  <button id="bReveal">reveal</button>
+  <button id="bMiss" class="hide">&#10007; missed</button>
+  <button id="bHit" class="hide">&#10003; got it</button>
+  <button id="bNext" class="hide">next</button>
+  <button id="bHint" class="hide">hint</button>
+  <button id="bUndo" class="hide">undo</button>
+  <button id="bNew" class="hide">new scramble</button>
+  <button id="bStart" class="hide">start</button>
+  <button id="bRamp" class="hide" aria-pressed="false">ramp</button>
+  <input id="bRange" class="hide" type="range" min="6" max="50" value="26"
+         aria-label="seconds per sticker">
+</div>
+
+<div class="row" id="tabs">
+  <button id="tab-learn" aria-selected="true">cube</button>
+  <button id="tab-s2l" aria-selected="false">s&rarr;ltr</button>
+  <button id="tab-piece" aria-selected="false">piece</button>
+  <button id="tab-l2s" aria-selected="false">ltr&rarr;s</button>
+  <button id="tab-trace" aria-selected="false">trace</button>
+  <button id="tab-memo" aria-selected="false">memo</button>
+  <button id="tab-pace" aria-selected="false">pace</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+"use strict";
+
+/* Speffz: on each face, letters run clockwise from the top-left sticker
+   seen face-on. Faces in order U L F R B D -> A.. E.. I.. M.. Q.. U..
+   Corners and edges are two separate A-X sets. */
+var F = {
+  U :{axis:1, sign: 1, up:[0,0,-1], rt:[ 1,0, 0], col:"#f1f2ef", ink:"#15171b", txt:"#f1f2ef", off:0},
+  L :{axis:0, sign:-1, up:[0,1, 0], rt:[ 0,0, 1], col:"#ec6a1a", ink:"#2b1402", txt:"#f0812f", off:4},
+  Fr:{axis:2, sign: 1, up:[0,1, 0], rt:[ 1,0, 0], col:"#1fa356", ink:"#effaf3", txt:"#2fc069", off:8},
+  R :{axis:0, sign: 1, up:[0,1, 0], rt:[ 0,0,-1], col:"#d8323c", ink:"#fff0f1", txt:"#e84a54", off:12},
+  B :{axis:2, sign:-1, up:[0,1, 0], rt:[-1,0, 0], col:"#2f66d0", ink:"#eef3ff", txt:"#5f8ef2", off:16},
+  D :{axis:1, sign:-1, up:[0,0, 1], rt:[ 1,0, 0], col:"#f8da33", ink:"#2e2705", txt:"#f8da33", off:20}
+};
+var KEYS = Object.keys(F);
+KEYS.forEach(function(k){ F[k].key = k; });
+var CORNER = {"0,0":0,"0,2":1,"2,2":2,"2,0":3};
+var EDGE   = {"0,1":0,"1,2":1,"2,1":2,"1,0":3};
+
+var mode = "learn";
+var show = {corner:true, edge:true};
+/* Which faces the drills draw from. All true = no filter. Orthogonal to
+   show: a face holds 4 corner letters and 4 edge letters. */
+var only = {};
+KEYS.forEach(function(k){ only[k] = true; });
+var quiz = {queue:[], cur:null, done:false, picked:null, right:0, asked:0};
+var faceSel = null;
+var peek = false;
+var tilesLit = true;     /* full-strength tile labels */
+var tilesFaint = false;  /* a grid is showing, so tiles recede instead of going blank */
+
+/* H half-cubie, C corner radius, N arc segments.
+   Only edges on the outside of the cube get rounded. */
+var H = 0.487, C = 0.082, N = 6;
+var HALF = Math.PI/2;
+
+var canvas = document.getElementById("view");
+var renderer = new THREE.WebGLRenderer({canvas:canvas, antialias:true});
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setClearColor(0x15181e, 1);
+var scene = new THREE.Scene();
+var camera = new THREE.OrthographicCamera(-3,3,3,-3,0.1,100);
+
+/* ---- moulded plastic ---- */
+var DIRS = [[0,1],[0,-1],[1,1],[1,-1],[2,1],[2,-1]];
+var CORE = new THREE.Color("#0d1015");
+KEYS.forEach(function(key){
+  var f = F[key];
+  f.rgb = new THREE.Color(f.col);
+  f.soft = "#" + new THREE.Color(f.col).lerp(new THREE.Color(f.ink), 0.2).getHexString();
+});
+
+var DIRCOL = DIRS.map(function(d){
+  for(var i = 0; i < KEYS.length; i++){
+    var f = F[KEYS[i]];
+    if(f.axis === d[0] && f.sign === d[1]) return f.rgb;
+  }
+});
+var pos = [], slotOf = [], slotList = [], slotIndex = {};
+var EMIT = {p:pos, s:slotOf};
+function registryTag(centre, axis, sign){
+  if(centre[axis] !== sign) return -1;        /* inward face, stays dark */
+  var k = centre.join(",") + "|" + axis + "," + sign;
+  if(!(k in slotIndex)){ slotIndex[k] = slotList.length; slotList.push(k); }
+  return slotIndex[k];
+}
+var TAG = registryTag;
+function vert(p, sl){ EMIT.p.push(p[0],p[1],p[2]); EMIT.s.push(sl); }
+function tri(a, ca, b, cb, c, cc){ vert(a,ca); vert(b,cb); vert(c,cc); }
+function quad(a, b, c, d, k){ tri(a,k,b,k,c,k); tri(a,k,c,k,d,k); }
+
+for(var cx = -1; cx <= 1; cx++)
+for(var cy = -1; cy <= 1; cy++)
+for(var cz = -1; cz <= 1; cz++) build([cx, cy, cz]);
+
+function build(centre){
+  function out(axis, sign){ return centre[axis] === sign; }
+  function round2(a, sa, b, sb){ return a !== b && out(a,sa) && out(b,sb); }
+  function slot(axis, sign){ return TAG(centre, axis, sign); }
+  function P(triples){
+    var p = centre.slice();
+    triples.forEach(function(t){ p[t[0]] += t[1]; });
+    return p;
+  }
+
+  DIRS.forEach(function(d){
+    var a = d[0], sa = d[1];
+    var o = [0,1,2].filter(function(x){ return x !== a; });
+    var k = slot(a, sa), ring = [];
+    [[1,1],[-1,1],[-1,-1],[1,-1]].forEach(function(sc){
+      var s0 = sc[0], s1 = sc[1];
+      var i0 = round2(a, sa, o[0], s0) ? C : 0;
+      var i1 = round2(a, sa, o[1], s1) ? C : 0;
+      if(!i0 && !i1 && round2(o[0], s0, o[1], s1)){
+        for(var t = 0; t <= N; t++){
+          var th = (s0*s1 > 0 ? t : N - t)/N*HALF;
+          ring.push([s0*(H - C + C*Math.cos(th)), s1*(H - C + C*Math.sin(th))]);
+        }
+      } else {
+        ring.push([s0*(H - i0), s1*(H - i1)]);
+      }
+    });
+    var mid = P([[a, sa*H]]);
+    for(var q = 0; q < ring.length; q++){
+      var u = ring[q], v = ring[(q + 1) % ring.length];
+      tri(mid, k,
+          P([[a, sa*H], [o[0], u[0]], [o[1], u[1]]]), k,
+          P([[a, sa*H], [o[0], v[0]], [o[1], v[1]]]), k);
+    }
+  });
+
+  DIRS.forEach(function(da, i){
+    DIRS.forEach(function(db, j){
+      if(j <= i || !round2(da[0], da[1], db[0], db[1])) return;
+      var a = da[0], sa = da[1], b = db[0], sb = db[1];
+      var e = [0,1,2].filter(function(x){ return x !== a && x !== b; })[0];
+      var hi = out(e, 1) ? H - C : H, lo = out(e,-1) ? H - C : H;
+      var ka = slot(a, sa), kb = slot(b, sb);
+      function arc(t, along){
+        var th = t/N*HALF;
+        return P([[a, sa*(H - C + C*Math.cos(th))],
+                  [b, sb*(H - C + C*Math.sin(th))],
+                  [e, along]]);
+      }
+      for(var t = 0; t < N; t++){
+        quad(arc(t, hi), arc(t+1, hi), arc(t+1, -lo), arc(t, -lo), t < N/2 ? ka : kb);
+      }
+    });
+  });
+
+  var M = 4;
+  [1,-1].forEach(function(sx){ [1,-1].forEach(function(sy){ [1,-1].forEach(function(sz){
+    if(!(out(0,sx) && out(1,sy) && out(2,sz))) return;
+    var sg = [sx, sy, sz];
+    function unit(axes){
+      var v = [0,0,0];
+      axes.forEach(function(a){ v[a] += sg[a]; });
+      var m = Math.sqrt(v[0]*v[0] + v[1]*v[1] + v[2]*v[2]);
+      return [v[0]/m, v[1]/m, v[2]/m];
+    }
+    [0,1,2].forEach(function(a){
+      var o = [0,1,2].filter(function(x){ return x !== a; });
+      var A = unit([a]), Bv = unit([a,o[0]]), Cv = unit([a,o[0],o[1]]), Dv = unit([a,o[1]]);
+      var k = slot(a, sg[a]);
+      function at(u, v){
+        var d = [0,0,0];
+        for(var q = 0; q < 3; q++){
+          d[q] = (1-u)*(1-v)*A[q] + u*(1-v)*Bv[q] + u*v*Cv[q] + (1-u)*v*Dv[q];
+        }
+        var m = Math.sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
+        return P([[0, sx*(H-C) + C*d[0]/m],
+                  [1, sy*(H-C) + C*d[1]/m],
+                  [2, sz*(H-C) + C*d[2]/m]]);
+      }
+      for(var i = 0; i < M; i++) for(var j = 0; j < M; j++){
+        quad(at(i/M, j/M), at((i+1)/M, j/M), at((i+1)/M, (j+1)/M), at(i/M, (j+1)/M), k);
+      }
+    });
+  });});});
+}
+
+var geo = new THREE.BufferGeometry();
+geo.setAttribute("position", new THREE.Float32BufferAttribute(pos, 3));
+var colAttr = new THREE.Float32BufferAttribute(new Float32Array(pos.length), 3);
+geo.setAttribute("color", colAttr);
+var cubeMesh = new THREE.Mesh(geo, new THREE.MeshBasicMaterial({
+  vertexColors:true, side:THREE.DoubleSide
+}));
+scene.add(cubeMesh);
+
+var slotSticker = [];
+function recolourPlastic(){
+  var a = colAttr.array;
+  for(var i = 0; i < slotOf.length; i++){
+    var sl = slotOf[i], c = CORE;
+    if(sl >= 0 && slotSticker[sl]) c = slotSticker[sl].cur.rgb;
+    a[3*i] = c.r; a[3*i+1] = c.g; a[3*i+2] = c.b;
+  }
+  colAttr.needsUpdate = true;
+}
+
+/* ---- letter tiles ---- */
+var TEX = 256, TILE = 2*(H - C), stickers = [], tiles = [];
+var RING = {ask:"#f0b429", good:"#4bc172", bad:"#e05360"};
+
+function paint(s){
+  var c = s.ctx;
+  c.fillStyle = s.cur.col;
+  c.fillRect(0,0,TEX,TEX);
+  var lit = tilesLit ? show[s.kind] : s.reveal;
+  var faint = !lit && tilesFaint && show[s.kind];
+  if(s.letter && (lit || faint)){
+    c.fillStyle = faint ? s.cur.soft : s.cur.ink;
+    c.font = '700 176px "Avenir Next","Helvetica Neue",Helvetica,Arial,sans-serif';
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.fillText(s.letter, 128, 140);
+  }
+  if(s.mark){
+    var w = 20, o = w/2 + 2, r = 26;
+    c.lineWidth = w;
+    c.strokeStyle = RING[s.mark];
+    c.beginPath();
+    c.moveTo(o + r, o);
+    c.arcTo(TEX-o, o, TEX-o, TEX-o, r);
+    c.arcTo(TEX-o, TEX-o, o, TEX-o, r);
+    c.arcTo(o, TEX-o, o, o, r);
+    c.arcTo(o, o, TEX-o, o, r);
+    c.closePath();
+    c.stroke();
+  }
+}
+function repaint(){
+  stickers.forEach(function(s){ paint(s); s.tex.needsUpdate = true; });
+}
+
+KEYS.forEach(function(key){
+  var f = F[key], n = [0,0,0];
+  n[f.axis] = f.sign;
+  for(var row = 0; row < 3; row++) for(var cl = 0; cl < 3; cl++){
+    var k = row + "," + cl, kind = "center", letter = "";
+    if(k in CORNER){ kind = "corner"; letter = String.fromCharCode(65 + f.off + CORNER[k]); }
+    else if(k in EDGE){ kind = "edge"; letter = String.fromCharCode(65 + f.off + EDGE[k]); }
+
+    var cv = document.createElement("canvas");
+    cv.width = cv.height = TEX;
+    var cell = [
+      n[0] + f.up[0]*(1 - row) + f.rt[0]*(cl - 1),
+      n[1] + f.up[1]*(1 - row) + f.rt[1]*(cl - 1),
+      n[2] + f.up[2]*(1 - row) + f.rt[2]*(cl - 1)
+    ];
+    var s = {ctx:cv.getContext("2d"), f:f, cur:f, cell:cell, nrm:n.slice(),
+             kind:kind, letter:letter, mark:null, reveal:false};
+    paint(s);
+    s.tex = new THREE.CanvasTexture(cv);
+    stickers.push(s);
+
+    var nv = new THREE.Vector3().fromArray(n);
+    var up = new THREE.Vector3().fromArray(f.up);
+    var rt = new THREE.Vector3().fromArray(f.rt);
+    var mesh = new THREE.Mesh(
+      new THREE.PlaneGeometry(TILE, TILE),
+      new THREE.MeshBasicMaterial({map:s.tex})
+    );
+    mesh.applyMatrix4(new THREE.Matrix4().makeBasis(rt, up, nv).setPosition(
+      nv.clone().multiplyScalar(1 + H + 0.002)
+        .addScaledVector(up, 1 - row)
+        .addScaledVector(rt, cl - 1)
+    ));
+    mesh.userData.s = s;
+    s.xform = mesh.matrix.clone();
+    s.normal = nv.clone();
+    scene.add(mesh);
+    tiles.push(mesh);
+  }
+});
+
+/* ---- cube state -------------------------------------------------------
+   A quarter turn of a face rotates every sticker in that layer by -90 deg
+   about the face normal: v' = n(n.v) - n x v. Positions are fixed, colours
+   move, which is exactly how Speffz labelling works.                      */
+var at = {};
+function key(cell, nrm){ return cell.join(",") + "|" + nrm.join(","); }
+stickers.forEach(function(s){ at[key(s.cell, s.nrm)] = s; });
+slotList.forEach(function(k, i){
+  var parts = k.split("|"), cell = parts[0].split(",").map(Number);
+  var ax = parts[1].split(",").map(Number), nrm = [0,0,0];
+  nrm[ax[0]] = ax[1];
+  slotSticker[i] = at[key(cell, nrm)] || null;
+});
+recolourPlastic();
+
+function spin(v, n){
+  var dot = n[0]*v[0] + n[1]*v[1] + n[2]*v[2];
+  var cx = n[1]*v[2] - n[2]*v[1];
+  var cy = n[2]*v[0] - n[0]*v[2];
+  var cz = n[0]*v[1] - n[1]*v[0];
+  return [n[0]*dot - cx, n[1]*dot - cy, n[2]*dot - cz];
+}
+function turn(axis, sign, times){
+  var n = [0,0,0];
+  n[axis] = sign;
+  for(var t = 0; t < (times || 1); t++){
+    var moved = [];
+    stickers.forEach(function(s){
+      if(s.cell[axis] !== sign) return;
+      moved.push([at[key(spin(s.cell, n), spin(s.nrm, n))], s.cur]);
+    });
+    moved.forEach(function(m){ if(m[0]) m[0].cur = m[1]; });
+  }
+}
+function solve(){
+  stickers.forEach(function(s){ s.cur = s.f; });
+}
+var MOVE = ["R","L","U","D","F","B"];   /* matches DIRS order */
+var scrambleText = "";
+function scramble(){
+  var last = -1, moves = [];
+  for(var i = 0; i < 20; i++){
+    var d;
+    do { d = Math.floor(Math.random()*6); } while(d >> 1 === last >> 1);
+    last = d;
+    var t = 1 + Math.floor(Math.random()*3);
+    turn(DIRS[d][0], DIRS[d][1], t);
+    moves.push(MOVE[d] + (t === 2 ? "2" : t === 3 ? "'" : ""));
+  }
+  scrambleText = moves.join(" ");
+}
+
+/* home cubie for each colour set, so a piece can be traced to where it belongs */
+var homeOf = {};
+stickers.forEach(function(s){
+  if(s.kind === "center") return;
+  var k = s.cell.join(",");
+  (homeOf[k] = homeOf[k] || []).push(s);
+});
+function setKey(list){
+  return list.map(function(x){ return x; }).sort().join("");
+}
+var cubieByColours = {};
+Object.keys(homeOf).forEach(function(k){
+  cubieByColours[setKey(homeOf[k].map(function(s){ return s.f.off; }))] = k;
+});
+
+/* Each cubie's stickers in clockwise order seen from outside, starting at
+   the sticker itself. A shoot swaps whole pieces, aligning the two targeted
+   stickers, so the rest follow by cyclic offset. */
+function det3(a, b, c){
+  return a[0]*(b[1]*c[2] - b[2]*c[1])
+       - a[1]*(b[0]*c[2] - b[2]*c[0])
+       + a[2]*(b[0]*c[1] - b[1]*c[0]);
+}
+stickers.forEach(function(s){
+  if(s.kind === "center") return;
+  var mates = homeOf[s.cell.join(",")];
+  var rest = mates.filter(function(m){ return m !== s; });
+  if(rest.length === 2 && det3(s.nrm, rest[0].nrm, rest[1].nrm) > 0){
+    rest = [rest[1], rest[0]];
+  }
+  s.ringS = [s].concat(rest);
+  s.ring = s.ringS.map(function(m){ return m.letter.charCodeAt(0) - 65; });
+});
+
+/* where does the piece sitting in this buffer need to go? */
+function target(buffer){
+  var here = homeOf[buffer.cell.join(",")];
+  var home = cubieByColours[setKey(here.map(function(s){ return s.cur.off; }))];
+  var dest = null;
+  homeOf[home].forEach(function(s){ if(s.f === buffer.cur) dest = s; });
+  return dest;
+}
+
+/* ---- single piece, for the isolated-recognition drill --------------------
+   Colour set plus which sticker is ringed already determines the letter, so
+   no cube context is needed. The real cubie is built, which keeps the
+   chirality of its three colours honest. */
+var SOLO = {};
+(function(){
+  var soloTag = function(centre, axis, sign){
+    return centre[axis] === sign ? axis*2 + (sign === 1 ? 0 : 1) : -1;
+  };
+  Object.keys(homeOf).forEach(function(k){
+    var cell = k.split(",").map(Number);
+    var save = EMIT, saveTag = TAG;
+    EMIT = {p:[], s:[]};
+    TAG = soloTag;
+    build(cell);
+    var P = EMIT.p, S = EMIT.s;
+    EMIT = save;
+    TAG = saveTag;
+    var xyz = new Float32Array(P.length), rgb = new Float32Array(P.length);
+    for(var i = 0; i < P.length; i += 3){        /* recentre on the origin */
+      xyz[i] = P[i] - cell[0];
+      xyz[i+1] = P[i+1] - cell[1];
+      xyz[i+2] = P[i+2] - cell[2];
+    }
+    for(var v = 0; v < S.length; v++){
+      var c = S[v] >= 0 ? DIRCOL[S[v]] : CORE;
+      rgb[3*v] = c.r; rgb[3*v+1] = c.g; rgb[3*v+2] = c.b;
+    }
+    var g = new THREE.BufferGeometry();
+    g.setAttribute("position", new THREE.Float32BufferAttribute(xyz, 3));
+    g.setAttribute("color", new THREE.Float32BufferAttribute(rgb, 3));
+    SOLO[k] = g;
+  });
+})();
+
+var soloGroup = new THREE.Group();
+var soloMesh = new THREE.Mesh(
+  new THREE.BufferGeometry(),
+  new THREE.MeshBasicMaterial({vertexColors:true, side:THREE.DoubleSide})
+);
+soloGroup.add(soloMesh);
+
+var SOLORING = {};
+Object.keys(RING).forEach(function(kind){
+  var T = 256, cv = document.createElement("canvas");
+  cv.width = cv.height = T;
+  var c = cv.getContext("2d"), o = 16, r = 30;
+  c.beginPath();
+  c.moveTo(o + r, o);
+  c.arcTo(T-o, o, T-o, T-o, r);
+  c.arcTo(T-o, T-o, o, T-o, r);
+  c.arcTo(o, T-o, o, o, r);
+  c.arcTo(o, o, T-o, o, r);
+  c.closePath();
+  c.lineWidth = 30; c.strokeStyle = "rgba(8,10,14,.5)"; c.stroke();
+  c.lineWidth = 17; c.strokeStyle = RING[kind]; c.stroke();
+  SOLORING[kind] = new THREE.MeshBasicMaterial({
+    map:new THREE.CanvasTexture(cv), transparent:true, depthWrite:false
+  });
+});
+var soloRing = new THREE.Mesh(new THREE.PlaneGeometry(TILE, TILE), SOLORING.ask);
+soloRing.renderOrder = 6;
+soloGroup.add(soloRing);
+soloGroup.visible = false;
+scene.add(soloGroup);
+
+var soloLabel = (function(){
+  var T = 256, cv = document.createElement("canvas");
+  cv.width = cv.height = T;
+  var m = new THREE.Mesh(
+    new THREE.PlaneGeometry(TILE*0.8, TILE*0.8),
+    new THREE.MeshBasicMaterial({
+      map:new THREE.CanvasTexture(cv), transparent:true,
+      depthTest:false, depthWrite:false
+    })
+  );
+  m.renderOrder = 24;
+  m.visible = false;
+  scene.add(m);
+  return {mesh:m, ctx:cv.getContext("2d"), tex:m.material.map, drawn:null};
+})();
+function paintSoloLabel(letter, kind){
+  var tag = letter + "|" + kind;
+  if(soloLabel.drawn === tag) return;
+  soloLabel.drawn = tag;
+  var c = soloLabel.ctx, T = 256;
+  c.clearRect(0, 0, T, T);
+  if(letter){
+    c.font = '700 168px "Avenir Next","Helvetica Neue",Helvetica,Arial,sans-serif';
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.lineJoin = "round";
+    c.lineWidth = 22;
+    c.strokeStyle = "rgba(8,10,14,.8)";
+    c.strokeText(letter, T/2, T/2 + 6);
+    c.fillStyle = RING[kind];
+    c.fillText(letter, T/2, T/2 + 6);
+  }
+  soloLabel.tex.needsUpdate = true;
+}
+
+/* present the piece with its outward diagonal toward the home view, plus a
+   per-question roll so the answer can't be read off screen position */
+var soloLabelAt = new THREE.Vector3();
+var AX = new THREE.Vector3(1,0,0), AY = new THREE.Vector3(0,1,0), AZ = new THREE.Vector3(0,0,1);
+function showSolo(s, mark, letter){
+  soloMesh.geometry = SOLO[s.cell.join(",")];
+  /* whole-cube rotation taking the ringed sticker to U and the rest to R and F,
+     so the piece stays axis aligned and reads like the URF corner of a cube */
+  var a = new THREE.Vector3().fromArray(s.nrm);
+  var b = new THREE.Vector3().fromArray(s.ringS[1].nrm);
+  var c = s.kind === "corner" ? new THREE.Vector3().fromArray(s.ringS[2].nrm)
+                              : a.clone().cross(b);
+  var src = new THREE.Matrix4().makeBasis(a, b, c).transpose();
+  var dst = new THREE.Matrix4().makeBasis(AY, AX,
+              s.kind === "corner" ? AZ : AZ.clone().negate());
+  soloGroup.quaternion.setFromRotationMatrix(dst.multiply(src));
+
+  var n = new THREE.Vector3().fromArray(s.nrm);
+  var up = new THREE.Vector3().fromArray(s.f.up);
+  var rt = new THREE.Vector3().fromArray(s.f.rt);
+  soloRing.matrixAutoUpdate = false;
+  soloRing.matrix.copy(new THREE.Matrix4().makeBasis(rt, up, n)
+    .setPosition(n.clone().multiplyScalar(H + 0.004)));
+  soloRing.material = SOLORING[mark];
+  soloLabelAt = n.clone().multiplyScalar(H + 0.06);
+  paintSoloLabel(letter || "", mark);
+  soloLabel.mesh.visible = !!letter;
+}
+
+/* ---- clockwise order overlay ---- */
+var arrowMeshes = [];
+(function(){
+  var T = 512, m = 38, r = 80, gap = 64;
+  var cv = document.createElement("canvas");
+  cv.width = cv.height = T;
+  var c = cv.getContext("2d");
+  var hi = "#f0b429", halo = "rgba(8,10,14,.45)";
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  function path(){
+    c.beginPath();
+    c.moveTo(m, m);
+    c.arcTo(T-m, m, T-m, T-m, r);
+    c.arcTo(T-m, T-m, m, T-m, r);
+    c.lineTo(m + gap, T-m);
+  }
+  function head(){
+    c.beginPath();
+    c.moveTo(m + 6, T-m);
+    c.lineTo(m + gap + 6, T-m-22);
+    c.lineTo(m + gap + 6, T-m+22);
+    c.closePath();
+  }
+  path(); c.lineWidth = 25; c.strokeStyle = halo; c.stroke();
+  head(); c.lineWidth = 16; c.strokeStyle = halo; c.stroke();
+  c.beginPath(); c.arc(m, m, 21, 0, 6.284); c.fillStyle = halo; c.fill();
+  path(); c.lineWidth = 12; c.strokeStyle = hi; c.stroke();
+  head(); c.fillStyle = hi; c.fill();
+  c.beginPath(); c.arc(m, m, 14, 0, 6.284); c.fill();
+
+  var mat = new THREE.MeshBasicMaterial({
+    map:new THREE.CanvasTexture(cv), transparent:true, depthWrite:false
+  });
+  KEYS.forEach(function(key){
+    var f = F[key], n = [0,0,0];
+    n[f.axis] = f.sign;
+    var nv = new THREE.Vector3().fromArray(n);
+    var mesh = new THREE.Mesh(new THREE.PlaneGeometry(3,3), mat);
+    mesh.applyMatrix4(new THREE.Matrix4()
+      .makeBasis(new THREE.Vector3().fromArray(f.rt), new THREE.Vector3().fromArray(f.up), nv)
+      .setPosition(nv.clone().multiplyScalar(1 + H + 0.02)));
+    mesh.visible = false;
+    scene.add(mesh);
+    arrowMeshes.push(mesh);
+  });
+})();
+
+/* ---- x-ray markers: a marked sticker on a face turned away from the
+   camera is drawn through the cube as a dashed ghost of the same colour ---- */
+var ghosts = {};
+Object.keys(RING).forEach(function(kind){
+  var T = 256;
+  var cv = document.createElement("canvas");
+  cv.width = cv.height = T;
+  var c = cv.getContext("2d");
+  var tex = new THREE.CanvasTexture(cv);
+  var mesh = new THREE.Mesh(
+    new THREE.PlaneGeometry(TILE, TILE),
+    new THREE.MeshBasicMaterial({
+      map:tex, transparent:true,
+      depthTest:false, depthWrite:false, side:THREE.DoubleSide
+    })
+  );
+  mesh.matrixAutoUpdate = false;
+  mesh.renderOrder = 20;
+  mesh.visible = false;
+  scene.add(mesh);
+
+  /* the letter rides on its own plane that always faces the camera, so it
+     stays upright whichever face it belongs to */
+  var lv = document.createElement("canvas");
+  lv.width = lv.height = T;
+  var lc = lv.getContext("2d");
+  var ltex = new THREE.CanvasTexture(lv);
+  var label = new THREE.Mesh(
+    new THREE.PlaneGeometry(TILE*0.86, TILE*0.86),
+    new THREE.MeshBasicMaterial({
+      map:ltex, transparent:true, depthTest:false, depthWrite:false
+    })
+  );
+  label.renderOrder = 22;
+  label.visible = false;
+  scene.add(label);
+
+  ghosts[kind] = {mesh:mesh, ctx:c, tex:tex, label:label, lctx:lc, ltex:ltex,
+                  kind:kind, dot:null, drawn:null};
+});
+
+function paintGhost(g, bare){
+  if(g.dot !== bare){
+    g.dot = bare;
+    var c = g.ctx, T = 256, o = 20, r = 30;
+    c.clearRect(0, 0, T, T);
+    function path(){
+      c.beginPath();
+      c.moveTo(o + r, o);
+      c.arcTo(T-o, o, T-o, T-o, r);
+      c.arcTo(T-o, T-o, o, T-o, r);
+      c.arcTo(o, T-o, o, o, r);
+      c.arcTo(o, o, T-o, o, r);
+      c.closePath();
+    }
+    c.setLineDash([30, 20]);
+    path(); c.lineWidth = 30; c.strokeStyle = "rgba(8,10,14,.55)"; c.stroke();
+    path(); c.lineWidth = 17; c.strokeStyle = RING[g.kind]; c.stroke();
+    c.setLineDash([]);
+    if(bare){
+      c.beginPath(); c.arc(T/2, T/2, 15, 0, 6.284);
+      c.fillStyle = "rgba(8,10,14,.55)"; c.fill();
+      c.beginPath(); c.arc(T/2, T/2, 9, 0, 6.284);
+      c.fillStyle = RING[g.kind]; c.fill();
+    }
+    g.tex.needsUpdate = true;
+  }
+}
+
+function paintLabel(g, letter){
+  if(g.drawn === letter) return;
+  g.drawn = letter;
+  var c = g.lctx, T = 256;
+  c.clearRect(0, 0, T, T);
+  if(letter){
+    c.font = '700 168px "Avenir Next","Helvetica Neue",Helvetica,Arial,sans-serif';
+    c.textAlign = "center";
+    c.textBaseline = "middle";
+    c.lineJoin = "round";
+    c.lineWidth = 22;
+    c.strokeStyle = "rgba(8,10,14,.78)";
+    c.strokeText(letter, T/2, T/2 + 6);
+    c.fillStyle = RING[g.kind];
+    c.fillText(letter, T/2, T/2 + 6);
+  }
+  g.ltex.needsUpdate = true;
+}
+
+/* dim outlines for the rest of a ghosted face, so the marker reads in context.
+   Two looks: neutral (context around a marker, gives nothing away) and
+   face-tinted (used when you have picked that face yourself). */
+var dimGeo = new THREE.PlaneGeometry(TILE, TILE);
+function outlineTex(fill, line, weight){
+  var T = 256, cv = document.createElement("canvas");
+  cv.width = cv.height = T;
+  var c = cv.getContext("2d");
+  var o = 22, r = 28;
+  function path(){
+    c.beginPath();
+    c.moveTo(o + r, o);
+    c.arcTo(T-o, o, T-o, T-o, r);
+    c.arcTo(T-o, T-o, o, T-o, r);
+    c.arcTo(o, T-o, o, o, r);
+    c.arcTo(o, o, T-o, o, r);
+    c.closePath();
+  }
+  if(fill){ path(); c.fillStyle = fill; c.fill(); }
+  path(); c.lineWidth = weight + 8; c.strokeStyle = "rgba(8,10,14,.32)"; c.stroke();
+  path(); c.lineWidth = weight; c.strokeStyle = line; c.stroke();
+  return new THREE.CanvasTexture(cv);
+}
+function ghostMat(tex){
+  return new THREE.MeshBasicMaterial({
+    map:tex, transparent:true,
+    depthTest:false, depthWrite:false, side:THREE.DoubleSide
+  });
+}
+var NEUTRAL = ghostMat(outlineTex(null, "rgba(226,232,242,.30)", 8));
+var TINT = {};
+KEYS.forEach(function(key){
+  var c = new THREE.Color(F[key].col);
+  var rgb = Math.round(c.r*255) + "," + Math.round(c.g*255) + "," + Math.round(c.b*255);
+  TINT[key] = ghostMat(outlineTex("rgba(" + rgb + ",.22)", "rgba(" + rgb + ",.85)", 10));
+});
+stickers.forEach(function(s){
+  var m = new THREE.Mesh(dimGeo, NEUTRAL);
+  m.matrixAutoUpdate = false;
+  m.matrix.copy(s.xform);
+  m.renderOrder = 15;
+  m.visible = false;
+  m.userData.s = s;
+  scene.add(m);
+  s.dim = m;
+
+  if(!s.letter) return;
+  var T = 128, cv = document.createElement("canvas");
+  cv.width = cv.height = T;
+  var c = cv.getContext("2d");
+  c.font = '700 84px "Avenir Next","Helvetica Neue",Helvetica,Arial,sans-serif';
+  c.textAlign = "center";
+  c.textBaseline = "middle";
+  c.lineJoin = "round";
+  c.lineWidth = 12;
+  c.strokeStyle = "rgba(8,10,14,.8)";
+  c.strokeText(s.letter, T/2, T/2 + 3);
+  c.fillStyle = "#e6ebf5";
+  c.fillText(s.letter, T/2, T/2 + 3);
+  var lab = new THREE.Mesh(
+    new THREE.PlaneGeometry(TILE*0.74, TILE*0.74),
+    new THREE.MeshBasicMaterial({
+      map:new THREE.CanvasTexture(cv), transparent:true,
+      depthTest:false, depthWrite:false
+    })
+  );
+  lab.position.setFromMatrixPosition(s.xform);
+  lab.renderOrder = 21;
+  lab.visible = false;
+  scene.add(lab);
+  s.dimLabel = lab;
+});
+
+function updateGhosts(){
+  Object.keys(ghosts).forEach(function(k){
+    ghosts[k].mesh.visible = false;
+    ghosts[k].label.visible = false;
+  });
+  stickers.forEach(function(s){
+    s.dim.visible = false;
+    if(s.dimLabel) s.dimLabel.visible = false;
+  });
+  var shown = false;
+  var dir = camera.position.clone().normalize();
+  var faces = [];
+  if(mode !== "learn") stickers.forEach(function(s){
+    if(!s.mark) return;
+    if(s.normal.dot(dir) >= 0.14) return;   /* already turned toward us */
+    var g = ghosts[s.mark];
+    var lit = s.reveal || peek;
+    paintGhost(g, !lit);
+    g.mesh.matrix.copy(s.xform);
+    g.mesh.visible = true;
+    shown = true;
+    if(lit){
+      paintLabel(g, s.letter);
+      g.label.position.setFromMatrixPosition(s.xform);
+      g.label.quaternion.copy(camera.quaternion);
+      g.label.visible = true;
+    }
+    if(faces.indexOf(s.f) < 0) faces.push(s.f);
+  });
+  if(faceSel && (mode === "learn" || (mode === "l2s" && !quiz.done))){
+    stickers.forEach(function(s){
+      if(s.f !== F[faceSel]) return;
+      s.dim.material = TINT[faceSel];
+      s.dim.visible = true;
+      shown = true;
+    });
+  }
+  if(faces.length){
+    stickers.forEach(function(s){
+      if(!s.mark && faces.indexOf(s.f) >= 0){
+        s.dim.material = NEUTRAL;
+        s.dim.visible = true;
+        shown = true;
+      }
+    });
+  }
+  var legend = mode === "learn" || peek;
+  setLabels(!shown && legend, shown && legend);
+  if(!legend) return;
+  stickers.forEach(function(s){
+    if(!s.dimLabel || !s.dim.visible || !show[s.kind]) return;
+    s.dimLabel.quaternion.copy(camera.quaternion);
+    s.dimLabel.visible = true;
+  });
+}
+
+function setLabels(lit, faint){
+  if(tilesLit === lit && tilesFaint === faint) return;
+  tilesLit = lit;
+  tilesFaint = faint;
+  repaint();
+}
+
+/* ---- fit ---- */
+var RAD = 2.2;
+function setScene(){
+  var solo = mode === "piece" || mode === "pace";
+  cubeMesh.visible = !solo;
+  tiles.forEach(function(t){ t.visible = !solo; });
+  soloGroup.visible = solo;
+  soloLabel.mesh.visible = false;
+  RAD = solo ? 0.95 : 2.2;
+  resize();
+}
+function resize(){
+  var w = canvas.clientWidth || 1, h = canvas.clientHeight || 1;
+  renderer.setSize(w, h, false);
+  var a = w/h, hw = RAD, hh = RAD;
+  if(a >= 1) hw = RAD*a; else hh = RAD/a;
+  camera.left = -hw; camera.right = hw;
+  camera.top = hh; camera.bottom = -hh;
+  camera.updateProjectionMatrix();
+}
+if(window.ResizeObserver) new ResizeObserver(resize).observe(canvas);
+window.addEventListener("resize", resize);
+resize();
+
+/* ---- orbit + tap ---- */
+var az = 0.72, pol = 1.05, last = null, travel = 0;
+var goalAz = null, goalPol = 0;
+
+function drag(x, y){
+  if(!last){ last = {x:x, y:y}; return; }
+  travel += Math.abs(x - last.x) + Math.abs(y - last.y);
+  az -= (x - last.x)*0.008;
+  pol -= (y - last.y)*0.008;
+  pol = Math.max(0.15, Math.min(Math.PI - 0.15, pol));
+  last = {x:x, y:y};
+}
+function grab(x, y){ last = {x:x, y:y}; travel = 0; goalAz = null; }
+function drop(x, y){
+  last = null;
+  if(travel < 10) tap(x, y);
+}
+canvas.addEventListener("touchstart", function(e){
+  e.preventDefault();
+  grab(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive:false});
+canvas.addEventListener("touchmove", function(e){
+  e.preventDefault();
+  drag(e.touches[0].clientX, e.touches[0].clientY);
+}, {passive:false});
+canvas.addEventListener("touchend", function(e){
+  e.preventDefault();
+  var t = e.changedTouches[0];
+  drop(t.clientX, t.clientY);
+}, {passive:false});
+canvas.addEventListener("touchcancel", function(){ last = null; }, {passive:false});
+document.addEventListener("touchmove", function(e){ e.preventDefault(); }, {passive:false});
+canvas.addEventListener("mousedown", function(e){ grab(e.clientX, e.clientY); });
+window.addEventListener("mousemove", function(e){ if(last) drag(e.clientX, e.clientY); });
+window.addEventListener("mouseup", function(e){ if(last) drop(e.clientX, e.clientY); });
+
+var ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+function tap(x, y){
+  if(mode === "pace"){ paceMiss(); return; }
+  if(mode !== "l2s" || !quiz.cur || quiz.done) return;
+  var r = canvas.getBoundingClientRect();
+  ndc.x = ((x - r.left)/r.width)*2 - 1;
+  ndc.y = -((y - r.top)/r.height)*2 + 1;
+  ray.setFromCamera(ndc, camera);
+  var list = [];
+  if(faceSel){
+    stickers.forEach(function(s){
+      if(s.f === F[faceSel] && s.dim.visible) list.push(s.dim);
+    });
+  }
+  var hit = ray.intersectObjects(list.length ? list : tiles, false)[0];
+  if(!hit) return;
+  var s = hit.object.userData.s;
+  if(s.kind === "center") return;
+  answer(s);
+}
+
+/* ---- quiz ---- */
+var elStatus = document.getElementById("status");
+var elGlyph = document.getElementById("glyph");
+var elSay = document.getElementById("say");
+var elScore = document.getElementById("score");
+var elAct = document.getElementById("act");
+var elRef = document.getElementById("ref");
+var bReveal = document.getElementById("bReveal");
+var bMiss = document.getElementById("bMiss");
+var bHit = document.getElementById("bHit");
+var bNext = document.getElementById("bNext");
+var bArrows = document.getElementById("bA");
+var bPeek = document.getElementById("bPeek");
+var bHintB = document.getElementById("bHint");
+var bUndoB = document.getElementById("bUndo");
+var bNewB = document.getElementById("bNew");
+
+function fresh(){
+  var out = [];
+  stickers.forEach(function(s){
+    if(s.kind !== "center" && show[s.kind] && only[s.f.key]) out.push(s);
+  });
+  for(var i = out.length - 1; i > 0; i--){
+    var j = Math.floor(Math.random()*(i + 1)), t = out[i];
+    out[i] = out[j]; out[j] = t;
+  }
+  return out;
+}
+function clearMarks(){
+  stickers.forEach(function(s){ s.mark = null; s.reveal = false; });
+}
+/* Standard frame: green front, white top. Every question returns here and
+   the camera never turns on its own; anything facing away is x-rayed. */
+var HOME_AZ = 0.62, HOME_POL = 1.0;
+function home(){
+  goalAz = HOME_AZ;
+  goalPol = HOME_POL;
+}
+function hiddenAtHome(s){
+  var sp = Math.sin(HOME_POL);
+  var d = new THREE.Vector3(sp*Math.sin(HOME_AZ), Math.cos(HOME_POL), sp*Math.cos(HOME_AZ));
+  return s.normal.dot(d) < 0.14;
+}
+function ask(){
+  clearMarks();
+  quiz.done = false;
+  quiz.picked = null;
+  quiz.said = null;
+  faceSel = null;
+  syncChips();
+  if(mode === "trace"){
+    var kinds = [];
+    if(show.corner) kinds.push("corner");
+    if(show.edge) kinds.push("edge");
+    solve();
+    if(!kinds.length){
+      quiz.cur = quiz.buf = null;
+    } else {
+      var kind = kinds[Math.floor(Math.random()*kinds.length)];
+      var buf = kind === "corner" ? bufCorner : bufEdge, tgt, tries = 0;
+      var wanted = [];
+      stickers.forEach(function(s){
+        if(s.kind === kind && s.letter && s !== buf && only[s.f.key]) wanted.push(s);
+      });
+      if(!wanted.length){                      /* filter left nothing: ignore it */
+        stickers.forEach(function(s){
+          if(s.kind === kind && s.letter && s !== buf) wanted.push(s);
+        });
+      }
+      var want = pickWeighted(wanted, "trace", quiz.prev);
+      do {                                    /* re-roll until it lands on the
+                                                 weak letter, or we give up */
+        solve();
+        scramble();
+        tgt = target(buf);
+      } while(++tries < 120 && (tgt === buf || tgt !== want));
+      var okL = {};                            /* the filter still binds even if
+                                                  the weak letter never came up */
+      wanted.forEach(function(w){ okL[w.letter] = true; });
+      var give = 0;
+      while((tgt === buf || !okL[tgt.letter]) && ++give < 600){
+        solve(); scramble(); tgt = target(buf);
+      }
+      while(tgt === buf){ solve(); scramble(); tgt = target(buf); }
+      quiz.prev = tgt;
+      quiz.buf = buf;
+      quiz.cur = tgt;
+      buf.mark = "ask";
+    }
+    recolourPlastic();
+  } else {
+    var pool = fresh();
+    quiz.cur = pool.length ? pickWeighted(pool, mode, quiz.prev) : null;
+    quiz.prev = quiz.cur;
+    if(quiz.cur && mode === "s2l") quiz.cur.mark = "ask";
+    if(quiz.cur && mode === "piece"){
+      showSolo(quiz.cur, "ask", peek ? quiz.cur.letter : "");
+    }
+  }
+  home();
+  repaint();
+  ui();
+}
+function answer(s){
+  quiz.picked = s;
+  quiz.done = true;
+  quiz.asked++;
+  var ok = s === quiz.cur;
+  if(ok) quiz.right++;
+  s.mark = ok ? "good" : "bad";
+  s.reveal = true;
+  if(!ok){ quiz.cur.mark = "good"; quiz.cur.reveal = true; }
+  record("l2s", quiz.cur, ok);
+  drawProgress();
+  faceSel = null;
+  syncChips();
+  repaint();
+  ui();
+}
+function grade(ok){
+  quiz.asked++;
+  if(ok) quiz.right++;
+  record("s2l", quiz.cur, ok);
+  drawProgress();
+  ask();
+}
+function ui(){
+  document.getElementById("legend").classList.toggle("hide", mode !== "learn" && mode !== "l2s");
+  elPad.classList.toggle("hide", mode !== "trace" && mode !== "memo" && mode !== "piece");
+  elSeq.classList.toggle("hide", mode !== "memo");
+  elProg.classList.toggle("hide", mode !== "learn");
+  elRef.classList.toggle("hide", mode !== "learn");
+  elStatus.classList.toggle("hide", mode === "learn");
+  elAct.classList.toggle("hide", mode === "learn");
+  elFaces.classList.toggle("hide", mode === "s2l");
+  elOnly.classList.toggle("hide", mode === "learn" || mode === "memo");
+  bArrows.classList.toggle("hide", mode !== "learn");
+  bPeek.classList.toggle("hide", mode === "learn");
+  [bReveal, bMiss, bHit, bNext, bHintB, bUndoB, bNewB,
+   bStart, bRamp, bRange].forEach(function(b){ b.classList.add("hide"); });
+  document.getElementById("beat").classList.toggle("hide", mode !== "pace");
+  if(mode === "learn") return;
+
+  elSay.className = "";
+  if(mode === "pace"){
+    bStart.classList.remove("hide");
+    bRamp.classList.remove("hide");
+    bRange.classList.remove("hide");
+    bRamp.setAttribute("aria-pressed", String(pace.ramp));
+    bStart.textContent = pace.on ? "stop" : "start";
+    bStart.setAttribute("aria-pressed", String(pace.on));
+    elGlyph.textContent = (pace.ms/1000).toFixed(1);
+    elScore.textContent = pace.done
+      ? pace.done + (pace.missed ? " \u00b7 " + pace.missed + " missed" : "") : "";
+    if(!pace.on){
+      elSay.innerHTML = "hands on your cube &mdash; a letter is spoken, find it, "
+        + "then the piece shows. set the pace with the slider"
+        + (pace.ramp ? ", <b>ramp</b> tightens it as you go." : ".");
+    } else {
+      elSay.innerHTML = pace.flagged ? "<b>missed</b>"
+        : "<b>" + (pace.ms/1000).toFixed(1) + "s</b> per sticker"
+          + (pace.ramp ? (pace.ms <= RAMP_MIN ? " &middot; floor" : " &middot; tightening")
+                       : " &middot; tap or space to flag a miss");
+    }
+    return;
+  }
+  if(mode === "memo"){
+    drawSeq();
+    if(memo.msg) elSay.className = "warn";
+    padKeys.forEach(function(b){ b.disabled = !memo.phase || memo.done; });
+    bNewB.classList.remove("hide");
+    elScore.textContent = (memo.wrong ? memo.wrong + " slip" + (memo.wrong > 1 ? "s" : "") : "clean") +
+      (memo.hints ? " \u00b7 " + memo.hints + "h" : "");
+    if(!memo.phase){
+      elGlyph.textContent = "";
+      elSay.innerHTML = "turn on corners or edges to start";
+    } else if(memo.done){
+      var total = memo.log.reduce(function(a, e){ return a + e.seq.length; }, 0);
+      elGlyph.textContent = "\u2713";
+      elSay.innerHTML = "memo complete &middot; <b>" + total + "</b> targets" +
+        (memo.parity === null ? "" : memo.parity ? " &middot; <b>parity</b>" : " &middot; no parity");
+    } else {
+      elGlyph.textContent = String(memo.seq.length);
+      bHintB.classList.remove("hide");
+      bUndoB.classList.remove("hide");
+      elSay.innerHTML = memo.msg || (memoNext() >= 0
+        ? "<b>" + memo.phase + "s</b> &middot; buffer " + BUFNAME[memo.phase] + " &middot; keep tracing"
+        : "cycle closed &middot; break into an unsolved piece");
+    }
+    return;
+  }
+  elScore.textContent = quiz.asked ? quiz.right + "/" + quiz.asked : "";
+  if(!quiz.cur){
+    elGlyph.textContent = "";
+    elSay.innerHTML = "turn on corners or edges to start";
+    return;
+  }
+  var kind = quiz.cur.kind;
+  if(mode === "piece"){
+    padKeys.forEach(function(b){ b.disabled = quiz.done; });
+    if(quiz.done){
+      var hit = quiz.said === quiz.cur.letter;
+      elGlyph.textContent = quiz.cur.letter;
+      elSay.innerHTML = quiz.said === null ? "it is <b>" + quiz.cur.letter + "</b>"
+        : hit ? "<b>correct</b>"
+        : "you said <b>" + quiz.said + "</b> &mdash; it is <b>" + quiz.cur.letter + "</b>";
+      bNext.classList.remove("hide");
+    } else {
+      elGlyph.textContent = "?";
+      elSay.innerHTML = "one <b>" + kind + "</b>, on its own &mdash; which letter is the ringed sticker?";
+      bReveal.classList.remove("hide");
+    }
+    return;
+  }
+  if(mode === "trace"){
+    padKeys.forEach(function(b){ b.disabled = quiz.done; });
+    if(quiz.done){
+      var right = quiz.said === quiz.cur.letter;
+      elGlyph.textContent = quiz.cur.letter;
+      elSay.innerHTML = quiz.said === null ? "it shoots to <b>" + quiz.cur.letter + "</b>"
+        : right ? "<b>correct</b> &middot; " + kind + " to <b>" + quiz.cur.letter + "</b>"
+        : "you said <b>" + quiz.said + "</b> &mdash; it shoots to <b>" + quiz.cur.letter + "</b>";
+      bNext.classList.remove("hide");
+    } else {
+      elGlyph.textContent = "\u2192";
+      elSay.innerHTML = "scrambled &middot; the <b>" + kind + "</b> buffer (" +
+        BUFNAME[kind] + ") is ringed &mdash; where does it shoot?";
+      bReveal.classList.remove("hide");
+    }
+    return;
+  }
+  if(mode === "s2l"){
+    if(quiz.done){
+      elGlyph.textContent = quiz.cur.letter;
+      elSay.innerHTML = "<b>" + quiz.cur.letter + "</b> &middot; " + kind;
+      bMiss.classList.remove("hide");
+      bHit.classList.remove("hide");
+    } else {
+      elGlyph.textContent = "?";
+      elSay.innerHTML = "which letter is the ringed " + kind + "?" +
+        (hiddenAtHome(quiz.cur) ? " &middot; <b>far side</b>, seen through the cube" : "");
+      bReveal.classList.remove("hide");
+    }
+  } else {
+    elGlyph.textContent = quiz.cur.letter;
+    if(quiz.done){
+      elSay.innerHTML = quiz.picked === quiz.cur ? "<b>correct</b>" :
+        "you tapped <b>" + quiz.picked.letter + "</b> &middot; " + quiz.picked.kind +
+        " &mdash; green ring is the answer";
+      bNext.classList.remove("hide");
+    } else {
+      elSay.innerHTML = "find this <b>" + kind + "</b> &mdash; tap it, or pick its face below";
+      bReveal.classList.remove("hide");
+    }
+  }
+}
+
+bReveal.addEventListener("click", function(){
+  if(!quiz.cur) return;
+  quiz.done = true;
+  quiz.cur.reveal = true;
+  if(mode !== "s2l"){          /* elsewhere reveal means giving up */
+    record(mode, quiz.cur, false);
+    drawProgress();
+  }
+  if(mode === "trace"){
+    quiz.asked++;
+    quiz.said = null;
+    quiz.cur.mark = "good";
+    repaint();
+    ui();
+    return;
+  }
+  if(mode === "l2s"){
+    quiz.picked = quiz.cur;
+    quiz.asked++;
+    quiz.cur.mark = "good";
+  }
+  if(mode === "piece"){
+    quiz.asked++;
+    quiz.said = null;
+    showSolo(quiz.cur, "good", quiz.cur.letter);
+  }
+  repaint();
+  ui();
+});
+bPeek.addEventListener("click", function(){
+  peek = !peek;
+  bPeek.setAttribute("aria-pressed", String(peek));
+  if(mode === "piece" && quiz.cur && !quiz.done){
+    showSolo(quiz.cur, "ask", peek ? quiz.cur.letter : "");
+  }
+});
+document.getElementById("bHint").addEventListener("click", memoHint);
+document.getElementById("bUndo").addEventListener("click", memoUndo);
+document.getElementById("bNew").addEventListener("click", newMemo);
+bMiss.addEventListener("click", function(){ grade(false); });
+bHit.addEventListener("click", function(){ grade(true); });
+bNext.addEventListener("click", function(){ ask(); });
+
+/* ---- toggles + tabs ---- */
+[["bC","corner"],["bE","edge"]].forEach(function(p){
+  var b = document.getElementById(p[0]);
+  b.addEventListener("click", function(){
+    show[p[1]] = !show[p[1]];
+    b.setAttribute("aria-pressed", String(show[p[1]]));
+    if(mode === "learn"){ repaint(); return; }
+    if(mode === "memo"){ newMemo(); return; }
+    quiz.queue = [];
+    ask();
+  });
+});
+bArrows.addEventListener("click", function(){
+  var on = bArrows.getAttribute("aria-pressed") !== "true";
+  bArrows.setAttribute("aria-pressed", String(on));
+  arrowMeshes.forEach(function(m){ m.visible = on; });
+});
+
+[["tab-learn","learn"],["tab-s2l","s2l"],["tab-l2s","l2s"],["tab-trace","trace"],
+ ["tab-memo","memo"], ["tab-piece","piece"], ["tab-pace","pace"]].forEach(function(p){
+  document.getElementById(p[0]).addEventListener("click", function(){
+    mode = p[1];
+    ["tab-learn","tab-s2l","tab-l2s","tab-trace","tab-memo","tab-piece",
+     "tab-pace"].forEach(function(id){
+      document.getElementById(id).setAttribute("aria-selected", String(id === p[0]));
+    });
+    peek = false;
+    bPeek.setAttribute("aria-pressed", "false");
+    faceSel = null;
+    syncChips();
+    if(mode !== "pace") paceStop(); else paceClear();
+    setScene();
+    if(mode === "learn"){
+      clearMarks();
+      quiz.cur = null;
+      goalAz = null;
+      solve();
+      recolourPlastic();
+      repaint();
+      ui();
+    } else {
+      arrowMeshes.forEach(function(m){ m.visible = false; });
+      bArrows.setAttribute("aria-pressed", "false");
+      solve();
+      recolourPlastic();
+      quiz.queue = [];
+      quiz.right = quiz.asked = 0;
+      if(mode === "memo") newMemo();
+      else if(mode === "pace"){ pace.on = false; soloGroup.visible = false; home(); ui(); }
+      else ask();
+    }
+  });
+});
+
+/* ---- what you know, kept across sessions ------------------------------
+   Leitner levels 0-4 per drill/piece/letter. A miss drops to 0, a hit steps
+   up one, and the draw weight is 2^(4-level), so a fresh or failed letter
+   comes up sixteen times as often as a mastered one.                      */
+var LEVELS = {};
+var HAS_STORE = !!(window.storage && window.storage.get);
+var SKEY = "speffz:levels";
+var saveTimer = null;
+
+function statKey(m, kind, letter){ return m + "|" + kind + "|" + letter; }
+function levelOf(m, s){
+  var v = LEVELS[statKey(m, s.kind, s.letter)];
+  return v === undefined ? 0 : v;
+}
+function record(m, s, ok){
+  if(!s || !s.letter) return;
+  var k = statKey(m, s.kind, s.letter);
+  var v = LEVELS[k] === undefined ? 0 : LEVELS[k];
+  LEVELS[k] = ok ? Math.min(4, v + 1) : 0;
+  saveStats();
+}
+function saveStats(){
+  if(!HAS_STORE) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(function(){
+    try { window.storage.set(SKEY, JSON.stringify(LEVELS)); } catch(e){}
+  }, 900);
+}
+function loadStats(){
+  if(!HAS_STORE){ drawProgress(); return; }
+  try {
+    window.storage.get(SKEY).then(function(r){
+      if(r && r.value) LEVELS = JSON.parse(r.value);
+      drawProgress();
+    }, function(){ drawProgress(); });
+  } catch(e){ drawProgress(); }
+}
+function pickWeighted(pool, m, avoid){
+  var total = 0, w = [];
+  pool.forEach(function(s){
+    var x = Math.pow(2, 4 - levelOf(m, s));
+    if(s === avoid) x *= 0.12;
+    w.push(x);
+    total += x;
+  });
+  var r = Math.random()*total;
+  for(var i = 0; i < pool.length; i++){
+    r -= w[i];
+    if(r <= 0) return pool[i];
+  }
+  return pool[pool.length - 1];
+}
+function solidCount(m){
+  var n = 0;
+  stickers.forEach(function(s){
+    if(s.letter && levelOf(m, s) >= 3) n++;
+  });
+  return n;
+}
+
+/* ---- Old Pochmann buffers: corner UBL (A), edge UR (B) ---- */
+var bufCorner = null, bufEdge = null;
+stickers.forEach(function(s){
+  if(s.kind === "corner" && s.letter === "A") bufCorner = s;
+  if(s.kind === "edge" && s.letter === "B") bufEdge = s;
+});
+var BUFNAME = {corner:"UBL", edge:"UR"};
+
+/* ---- A-X keypad for the trace drill ---- */
+var elPad = document.getElementById("pad");
+var padKeys = [];
+for(var pi = 0; pi < 24; pi++){
+  (function(letter){
+    var b = document.createElement("button");
+    b.textContent = letter;
+    b.addEventListener("click", function(){
+      if(mode === "memo") memoInput(letter); else answerLetter(letter);
+    });
+    elPad.appendChild(b);
+    padKeys.push(b);
+  })(String.fromCharCode(65 + pi));
+}
+function answerLetter(letter){
+  if(mode !== "trace" && mode !== "piece") return;
+  if(!quiz.cur || quiz.done) return;
+  quiz.done = true;
+  quiz.asked++;
+  quiz.said = letter;
+  var ok = letter === quiz.cur.letter;
+  if(ok) quiz.right++;
+  record(mode, quiz.cur, ok);
+  drawProgress();
+  if(mode === "piece"){
+    showSolo(quiz.cur, ok ? "good" : "bad", quiz.cur.letter);
+    ui();
+    return;
+  }
+  quiz.cur.mark = "good";
+  quiz.cur.reveal = true;
+  if(!ok){
+    stickers.forEach(function(s){
+      if(s.letter === letter && s.kind === quiz.cur.kind && s !== quiz.cur){
+        s.mark = "bad";
+        s.reveal = true;
+      }
+    });
+  }
+  repaint();
+  ui();
+}
+
+/* ---- full memo ---------------------------------------------------------
+   An Old Pochmann shoot is a transposition on the 24 stickers of one orbit,
+   so the whole memo can be simulated without turning anything. dest[i] is
+   where the sticker now sitting at location i belongs; shooting swaps
+   dest[buffer] with dest[target]; the memo is finished when dest is fixed.
+   There is no single right answer, because break-ins are a free choice, so
+   every letter is judged against the rules rather than a stored solution. */
+var memo = {phase:null, queue:[], locs:[], dest:[], buf:0, seq:[], log:[],
+            wrong:0, hints:0, parity:null, msg:"", done:false};
+var elSeq = document.getElementById("seq");
+function LTR(i){ return String.fromCharCode(65 + i); }
+function memoSettled(){
+  for(var i = 0; i < memo.dest.length; i++) if(memo.dest[i] !== i) return false;
+  return true;
+}
+function memoDest(){
+  return memo.locs.map(function(s){ return target(s).letter.charCodeAt(0) - 65; });
+}
+function startPhase(){
+  memo.phase = memo.queue.shift();
+  memo.locs = [];
+  stickers.forEach(function(s){
+    if(s.kind === memo.phase) memo.locs[s.letter.charCodeAt(0) - 65] = s;
+  });
+  memo.dest = memoDest();
+  memo.buf = memo.phase === "corner" ? 0 : 1;   /* UBL is A, UR is B */
+  memo.seq = [];
+  memo.msg = "";
+  clearMarks();
+  memo.locs[memo.buf].mark = "ask";
+  repaint();
+  ui();
+}
+function newMemo(){
+  var phases = [];
+  if(show.edge) phases.push("edge");        /* edges first, as in a real memo */
+  if(show.corner) phases.push("corner");
+  memo.log = [];
+  memo.queue = phases.slice();
+  memo.wrong = memo.hints = 0;
+  memo.parity = null;
+  memo.done = false;
+  memo.msg = "";
+  memo.seq = [];
+  clearMarks();
+  solve();
+  if(!phases.length){
+    memo.phase = null;
+    memo.locs = [];
+    memo.dest = [];
+    recolourPlastic();
+    repaint();
+    ui();
+    return;
+  }
+  scramble();
+  recolourPlastic();
+  startPhase();
+}
+function memoShoot(i){
+  var br = memo.locs[memo.buf].ring, xr = memo.locs[i].ring;
+  for(var k = 0; k < br.length; k++){
+    var a = br[k], x = xr[k], t = memo.dest[a];
+    memo.dest[a] = memo.dest[x];
+    memo.dest[x] = t;
+  }
+}
+function inBuffer(i){
+  return memo.locs[memo.buf].ring.indexOf(i) >= 0;
+}
+function memoNext(){                        /* forced letter, or -1 to break in */
+  var b = memo.buf;
+  return (memo.dest[b] !== b && !inBuffer(memo.dest[b])) ? memo.dest[b] : -1;
+}
+function memoInput(letter){
+  if(!memo.phase || memo.done) return;
+  var i = letter.charCodeAt(0) - 65, b = memo.buf, forced = memoNext();
+  if(inBuffer(i)){
+    memo.msg = "<b>" + letter + "</b> is on the buffer piece &mdash; you cannot shoot at it";
+    memo.wrong++;
+  } else if(forced >= 0){
+    if(i !== forced){                       /* mid-cycle, only one letter works */
+      memo.msg = "not <b>" + letter + "</b> &mdash; the buffer shoots to <b>" +
+                 LTR(forced) + "</b>";
+      memo.wrong++;
+      record("trace", memo.locs[forced], false);
+      drawProgress();
+    } else {
+      record("trace", memo.locs[i], true);
+      drawProgress();
+      memoAccept(letter, i);
+      return;
+    }
+  } else if(memo.dest[i] === i){            /* cycle closed, needs a break-in */
+    memo.msg = "<b>" + letter + "</b> is already solved &mdash; breaking in there undoes it";
+    memo.wrong++;
+  } else {
+    memoAccept(letter, i);
+    return;
+  }
+  ui();
+}
+function memoAccept(letter, i){
+  memoShoot(i);
+  memo.seq.push(letter);
+  memo.msg = "";
+  clearMarks();
+  memo.locs[memo.buf].mark = "ask";
+  memo.locs[i].mark = "good";
+  if(memoSettled()){
+    memo.log.push({phase:memo.phase, seq:memo.seq.slice()});
+    if(memo.phase === "edge") memo.parity = memo.seq.length % 2 === 1;
+    if(memo.queue.length){ startPhase(); return; }
+    memo.done = true;
+  }
+  repaint();
+  ui();
+}
+function memoUndo(){
+  if(!memo.phase || !memo.seq.length || memo.done) return;
+  var seq = memo.seq.slice(0, -1);
+  memo.dest = memoDest();
+  seq.forEach(function(l){ memoShoot(l.charCodeAt(0) - 65); });
+  memo.seq = seq;
+  memo.msg = "";
+  clearMarks();
+  memo.locs[memo.buf].mark = "ask";
+  if(seq.length) memo.locs[seq[seq.length - 1].charCodeAt(0) - 65].mark = "good";
+  repaint();
+  ui();
+}
+function memoHint(){
+  if(!memo.phase || memo.done) return;
+  memo.hints++;
+  var f = memoNext();
+  memo.msg = f >= 0 ? "next is <b>" + LTR(f) + "</b>"
+    : "break into any unsolved piece";
+  ui();
+}
+function drawSeq(){
+  var html = scrambleText ?
+    '<div class="scr"><i>scramble</i>' + scrambleText + '</div>' +
+    '<div class="scr"><i>hold</i>white up, green front</div>' : "";
+  memo.log.concat(memo.phase && !memo.done ?
+      [{phase:memo.phase, seq:memo.seq}] : []).forEach(function(e){
+    var pairs = [];
+    for(var i = 0; i < e.seq.length; i += 2) pairs.push(e.seq.slice(i, i + 2).join(""));
+    html += "<div><i>" + e.phase + "</i>" + (pairs.join(" ") || "&mdash;") + "</div>";
+  });
+  elSeq.innerHTML = html;
+}
+
+/* ---- pace drill --------------------------------------------------------
+   Hands stay on a real cube. A letter is spoken, you find it with a finger,
+   then the piece appears as the answer key. Tap anywhere (or hit space) to
+   flag a miss. The interval adapts: clean runs speed it up, misses slow it
+   down, so it settles at your actual threshold.                           */
+var pace = {on:false, ms:2600, done:0, missed:0, cur:null,
+            flagged:false, timers:[], ramp:false};
+var RAMP_MIN = 600;              /* the slider's own floor, so the two agree */
+var RAMP_RATE = 0.985;           /* per sticker: about 90 of them to the floor */
+var elBeat = document.getElementById("beat").firstElementChild;
+var bStart = document.getElementById("bStart");
+var bRange = document.getElementById("bRange");
+var bRamp = document.getElementById("bRamp");
+
+function say(text){
+  var synth = window.speechSynthesis;
+  if(!synth) return;
+  try {
+    synth.cancel();
+    var u = new SpeechSynthesisUtterance(text);
+    u.rate = 0.85;
+    synth.speak(u);
+  } catch(e){}
+}
+function paceClear(){
+  pace.timers.forEach(clearTimeout);
+  pace.timers = [];
+}
+function paceStop(){
+  paceClear();
+  pace.on = false;
+  if(window.speechSynthesis) try { window.speechSynthesis.cancel(); } catch(e){}
+  elBeat.style.transition = "none";
+  elBeat.style.width = "0%";
+  ui();
+}
+function paceStep(){
+  if(!pace.on) return;
+  var pool = fresh();
+  if(!pool.length){ paceStop(); return; }
+  pace.cur = pickWeighted(pool, "pace", pace.cur);
+  pace.flagged = false;
+  soloGroup.visible = false;
+  soloLabel.mesh.visible = false;
+
+  var kinds = (show.corner ? 1 : 0) + (show.edge ? 1 : 0);
+  /* lowercase, or voices announce an isolated capital as "capital A" */
+  say((kinds === 2 ? pace.cur.kind + " " : "") + pace.cur.letter.toLowerCase());
+
+  elBeat.style.transition = "none";
+  elBeat.style.width = "0%";
+  pace.timers.push(setTimeout(function(){
+    elBeat.style.transition = "width " + pace.ms + "ms linear";
+    elBeat.style.width = "100%";
+  }, 20));
+
+  pace.timers.push(setTimeout(function(){       /* answer key, just over half way */
+    if(!pace.on) return;
+    soloGroup.visible = true;
+    showSolo(pace.cur, pace.flagged ? "bad" : "good", pace.cur.letter);
+  }, Math.round(pace.ms*0.55)));
+
+  pace.timers.push(setTimeout(function(){
+    if(!pace.on) return;
+    pace.done++;
+    if(pace.flagged){        /* a tap is a real signal; silence is not, so an
+                                unflagged beat records nothing either way */
+      record("pace", pace.cur, false);
+      drawProgress();
+      pace.missed++;
+    }
+    if(pace.ramp){           /* opt-in and one-way: it creeps toward the floor
+                                and stops there, and reads nothing from whether
+                                a beat was flagged */
+      pace.ms = Math.max(RAMP_MIN, pace.ms*RAMP_RATE);
+      bRange.value = Math.round(pace.ms/100);
+    }
+    paceClear();
+    paceStep();
+    ui();
+  }, pace.ms));
+  ui();
+}
+function paceMiss(){
+  if(!pace.on || pace.flagged) return;
+  pace.flagged = true;
+  if(soloGroup.visible) showSolo(pace.cur, "bad", pace.cur.letter);
+  ui();
+}
+bStart.addEventListener("click", function(){
+  if(pace.on){ paceStop(); return; }
+  pace.on = true;
+  pace.done = pace.missed = 0;
+  paceStep();
+});
+bRange.addEventListener("input", function(){
+  pace.ms = bRange.value*100;
+  ui();
+});
+bRamp.addEventListener("click", function(){
+  pace.ramp = !pace.ramp;
+  ui();
+});
+bRange.addEventListener("change", function(){   /* apply on release, not mid-drag */
+  if(pace.on){ paceClear(); paceStep(); }
+});
+window.addEventListener("keydown", function(e){
+  if(mode === "pace" && (e.code === "Space" || e.key === " ")){
+    e.preventDefault();
+    paceMiss();
+  }
+});
+
+/* ---- face chips, laid out as an unfolded net ---- */
+var elFaces = document.getElementById("faces");
+var NET = {U:[1,2], L:[2,1], Fr:[2,2], R:[2,3], B:[2,4], D:[3,2]};
+var NETR = {                       /* only the net's outer corners are rounded */
+  U :"7px 7px 0 0",
+  L :"7px 0 0 7px",
+  Fr:"0",
+  R :"0",
+  B :"0 7px 7px 0",
+  D :"0 0 7px 7px"
+};
+var chips = {};
+KEYS.forEach(function(key){
+  var f = F[key], b = document.createElement("button");
+  b.textContent = key === "Fr" ? "F" : key;
+  b.style.background = f.col;
+  b.style.color = f.ink;
+  b.style.borderRadius = NETR[key];
+  b.style.gridRow = NET[key][0];
+  b.style.gridColumn = NET[key][1];
+  b.setAttribute("aria-pressed", "false");
+  b.addEventListener("click", function(){
+    if(mode !== "learn" && quiz.done) return;
+    faceSel = faceSel === key ? null : key;
+    stickers.forEach(function(s){ s.dim.visible = false; });
+    syncChips();
+  });
+  elFaces.appendChild(b);
+  chips[key] = b;
+});
+function syncChips(){
+  KEYS.forEach(function(key){
+    chips[key].setAttribute("aria-pressed", String(faceSel === key));
+  });
+}
+
+/* ---- face filter: which letter blocks the drills draw from ----
+   Same unfolded net as the selector above, so a face is picked by where it
+   sits rather than by remembering its letter block. Distinct from those
+   chips: this one is persistent and multi-select, and it never touches the
+   view. First tap on an unfiltered net solos a face, since training one face
+   is the common want and shouldn't cost five taps; after that each tap is a
+   plain toggle, and emptying the net means no filter rather than no pool. */
+var elOnly = document.getElementById("only");
+var elOnlyNet = document.getElementById("onlyNet");
+var onlyBtn = {};
+KEYS.forEach(function(key){
+  var f = F[key], b = document.createElement("button");
+  b.textContent = key === "Fr" ? "F" : key;
+  b.style.background = f.col;
+  b.style.color = f.ink;
+  b.style.borderRadius = NETR[key].replace(/7px/g, "5px");
+  b.style.gridRow = NET[key][0];
+  b.style.gridColumn = NET[key][1];
+  b.setAttribute("aria-pressed", "true");
+  b.addEventListener("click", function(){
+    if(KEYS.every(function(k){ return only[k]; })){
+      KEYS.forEach(function(k){ only[k] = k === key; });
+    } else {
+      only[key] = !only[key];
+      if(!KEYS.some(function(k){ return only[k]; })){
+        KEYS.forEach(function(k){ only[k] = true; });
+      }
+    }
+    syncOnly();
+    if(mode === "learn" || mode === "memo") return;
+    if(mode === "pace"){ if(pace.on){ paceClear(); paceStep(); } return; }
+    quiz.queue = [];
+    ask();
+  });
+  elOnlyNet.appendChild(b);
+  onlyBtn[key] = b;
+});
+function syncOnly(){
+  KEYS.forEach(function(k){
+    onlyBtn[k].setAttribute("aria-pressed", String(only[k]));
+  });
+}
+
+/* ---- progress readout ---- */
+var elProg = document.getElementById("prog");
+var progRows = {};
+[["s2l","st\u2192ltr"],["piece","piece"],["l2s","ltr\u2192st"],
+ ["trace","trace"]].forEach(function(p){
+  var d = document.createElement("div");
+  d.innerHTML = p[1] + " <b>0</b>/48";
+  elProg.appendChild(d);
+  progRows[p[0]] = d;
+  d.dataset.label = p[1];
+});
+var elNote = document.createElement("div");
+elNote.style.color = "#565e6b";
+elProg.appendChild(elNote);
+var bReset = document.createElement("button");
+bReset.textContent = "reset";
+bReset.addEventListener("click", function(){
+  LEVELS = {};
+  saveStats();
+  drawProgress();
+});
+elProg.appendChild(bReset);
+
+function drawProgress(){
+  Object.keys(progRows).forEach(function(m){
+    progRows[m].innerHTML = progRows[m].dataset.label +
+      " <b>" + solidCount(m) + "</b>/48";
+  });
+  elNote.textContent = HAS_STORE ? "saved" : "this session only";
+}
+
+/* ---- reference rows ---- */
+KEYS.forEach(function(key){
+  var f = F[key], row = document.createElement("div"), t = "";
+  for(var i = 0; i < 4; i++) t += String.fromCharCode(65 + f.off + i);
+  row.textContent = t;
+  row.style.color = f.txt;
+  elRef.appendChild(row);
+});
+ui();
+loadStats();
+
+/* ---- loop ---- */
+function wrapAngle(a){ return Math.atan2(Math.sin(a), Math.cos(a)); }
+(function tick(){
+  if(goalAz !== null && !last){
+    var d = wrapAngle(goalAz - az), e = goalPol - pol;
+    az += d*0.16;
+    pol += e*0.16;
+    if(Math.abs(d) < 0.004 && Math.abs(e) < 0.004) goalAz = null;
+  }
+  var sp = Math.sin(pol);
+  camera.position.set(20*sp*Math.sin(az), 20*Math.cos(pol), 20*sp*Math.cos(az));
+  camera.lookAt(0,0,0);
+  updateGhosts();
+  if(soloLabel.mesh.visible){
+    soloLabel.mesh.position.copy(soloLabelAt).applyQuaternion(soloGroup.quaternion);
+    soloLabel.mesh.quaternion.copy(camera.quaternion);
+  }
+  renderer.render(scene, camera);
+  requestAnimationFrame(tick);
+})();
+})();
+</script>
+</body>
+</html>

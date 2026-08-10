@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<title>Speffz cube</title>
+<link rel="stylesheet" href="/src/style.css" />
+</head>
+<body>
+<div id="top">
+  <button id="bC" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true">
+    <g fill="currentColor"><rect x="2" y="2" width="6" height="6" rx="1.6"/><rect x="16" y="2" width="6" height="6" rx="1.6"/><rect x="2" y="16" width="6" height="6" rx="1.6"/><rect x="16" y="16" width="6" height="6" rx="1.6"/></g>
+    <g fill="currentColor" opacity=".22"><rect x="9" y="2" width="6" height="6" rx="1.6"/><rect x="2" y="9" width="6" height="6" rx="1.6"/><rect x="9" y="9" width="6" height="6" rx="1.6"/><rect x="16" y="9" width="6" height="6" rx="1.6"/><rect x="9" y="16" width="6" height="6" rx="1.6"/></g>
+  </svg>corners</button>
+  <button id="bE" aria-pressed="true"><svg viewBox="0 0 24 24" aria-hidden="true">
+    <g fill="currentColor"><rect x="9" y="2" width="6" height="6" rx="1.6"/><rect x="2" y="9" width="6" height="6" rx="1.6"/><rect x="16" y="9" width="6" height="6" rx="1.6"/><rect x="9" y="16" width="6" height="6" rx="1.6"/></g>
+    <g fill="currentColor" opacity=".22"><rect x="2" y="2" width="6" height="6" rx="1.6"/><rect x="16" y="2" width="6" height="6" rx="1.6"/><rect x="9" y="9" width="6" height="6" rx="1.6"/><rect x="2" y="16" width="6" height="6" rx="1.6"/><rect x="16" y="16" width="6" height="6" rx="1.6"/></g>
+  </svg>edges</button>
+  <button id="bA" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M4 12a8 8 0 1 1 3.2 6.4" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/>
+    <path d="M3 6.5 L4.4 12.6 L10.2 10.4 Z" fill="currentColor"/>
+  </svg>arrows</button>
+  <button id="bPeek" aria-pressed="false"><svg viewBox="0 0 24 24" aria-hidden="true">
+    <path d="M1.6 12S5.6 5.2 12 5.2 22.4 12 22.4 12 18.4 18.8 12 18.8 1.6 12 1.6 12Z" fill="none" stroke="currentColor" stroke-width="2.1"/>
+    <circle cx="12" cy="12" r="3.1" fill="currentColor"/>
+  </svg>peek</button>
+</div>
+
+<canvas id="view"></canvas>
+
+<div id="legend">
+  <div id="ref"></div>
+  <div id="faces"></div>
+</div>
+
+<div id="status" class="hide">
+  <span id="glyph"></span>
+  <span id="say"></span>
+  <span id="score"></span>
+</div>
+
+<div class="hide" id="answer"></div>
+
+<div class="row hide" id="act">
+  <button id="bGiveUp" class="hide">give up, reveal it</button>
+  <button id="bNext" class="hide">next</button>
+</div>
+
+<div class="row" id="tabs">
+  <button id="tab-learn" aria-selected="true">cube</button>
+  <button id="tab-s2l" aria-selected="false">s&rarr;ltr</button>
+  <button id="tab-l2s" aria-selected="false">ltr&rarr;s</button>
+  <button id="tab-piece" aria-selected="false">piece</button>
+</div>
+
+<script type="module" src="/src/main.ts"></script>
+</body>
+</html>
