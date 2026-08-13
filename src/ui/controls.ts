@@ -19,7 +19,7 @@
 // hides the pool net, or that `peek` is quiz-only, stays in main.ts.
 import { KEYS, type FaceKey } from "../cube/faces";
 import type { Kind } from "../cube/state";
-import { isFiltered as filterIsNarrow, type PoolFilter } from "../drills/pool";
+import { isFiltered as filterIsNarrow, poolLetters, type PoolFilter } from "../drills/pool";
 import { createNet, type Net } from "./net";
 
 /** Which groups are relevant right now. All-false is legal (hides the
@@ -67,6 +67,10 @@ const ICON: Readonly<Record<string, string>> = {
     <path d="M3 6.5 L4.4 12.6 L10.2 10.4 Z" fill="currentColor"/>`,
   peek: `<path d="M1.6 12S5.6 5.2 12 5.2 22.4 12 22.4 12 18.4 18.8 12 18.8 1.6 12 1.6 12Z" fill="none" stroke="currentColor" stroke-width="2.1"/>
     <circle cx="12" cy="12" r="3.1" fill="currentColor"/>`,
+  // whole pieces: one selected sticker plus the two it shares a cubie with,
+  // drawn in the same solid + ghosted idiom as the corners/edges glyphs
+  whole: `<g fill="currentColor"><rect x="2" y="2" width="9" height="9" rx="2"/></g>
+    <g fill="currentColor" opacity=".3"><rect x="13" y="2" width="9" height="9" rx="2"/><rect x="2" y="13" width="9" height="9" rx="2"/></g>`,
   // trigger: a funnel, the one icon here that isn't reused from #top
   filter: `<path d="M3 5h18l-7 8v6l-4 2v-8Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>`,
 };
@@ -82,6 +86,7 @@ function faceLabel(key: FaceKey): string {
 export function createControls(): Controls {
   let corners = true;
   let edges = true;
+  let wholePiece = false;
   let arrows = false;
   let peek = false;
   let pinned = false;
@@ -207,7 +212,66 @@ export function createControls(): Controls {
   netWrap.style.justifyContent = "center";
   netWrap.appendChild(net.element);
   net.onChange(() => emitPool());
-  poolGroup.body.append(kindRow, netWrap);
+
+  /** is the net actually narrowing anything right now */
+  function faceFiltered(): boolean {
+    const on = net.getSelection();
+    return KEYS.some((k) => !on.has(k));
+  }
+
+  // Whole-piece mode: the net selects cubies rather than stickers (see
+  // PoolFilter.wholePiece). It is inert with every face selected — a piece
+  // can't be pulled in by a face that already covered it — so it disables
+  // itself there rather than sitting live and doing nothing. Disabled, not
+  // hidden: it lives directly under the net and every net tap would
+  // otherwise shift the rows below it.
+  const bWhole = toggle("whole", "whole pieces", () => {
+    if (!faceFiltered()) return;
+    wholePiece = !wholePiece;
+    emitPool();
+  });
+  const wholeRow = row(bWhole);
+
+  // The pool, spelled out — because the net can't spell it. Whole-piece mode
+  // reaches stickers on faces the net draws as deselected (picking F lights
+  // three of U's eight stickers, not U), so no highlight on a six-square net
+  // describes the result honestly. Naming the letters is exact, costs one
+  // element, and reads the same whatever granularity the net ever grows.
+  //
+  // Only shown while a face filter is active: unfiltered, this is the whole
+  // alphabet twice and the kind toggles already say the rest.
+  const poolList = document.createElement("div");
+  poolList.style.display = "flex";
+  poolList.style.flexDirection = "column";
+  poolList.style.gap = "2px";
+  poolList.style.maxWidth = "176px";
+  poolList.style.fontSize = "10px";
+  poolList.style.lineHeight = "1.4";
+  poolList.style.letterSpacing = "0.07em";
+
+  function poolRow(label: string, kind: Exclude<Kind, "center">): HTMLElement {
+    const { direct, viaPiece } = poolLetters(filter(), kind);
+    const r = document.createElement("div");
+    const tag = document.createElement("span");
+    tag.textContent = label;
+    tag.style.color = "var(--text-faint)";
+    tag.style.marginRight = "6px";
+    const head = document.createElement("span");
+    head.textContent = direct;
+    head.style.color = "var(--text-bright)";
+    r.append(tag, head);
+    if (viaPiece) {
+      // accent-tinted, so what the toggle just bought you is visible at a
+      // glance rather than buried in a longer run of letters
+      const extra = document.createElement("span");
+      extra.textContent = ` + ${viaPiece}`;
+      extra.style.color = "var(--accent)";
+      r.appendChild(extra);
+    }
+    return r;
+  }
+
+  poolGroup.body.append(kindRow, netWrap, wholeRow, poolList);
 
   // ---- show group ----
   const showGroup = group("show");
@@ -225,7 +289,7 @@ export function createControls(): Controls {
   panel.append(poolGroup.wrap, showGroup.wrap);
 
   function filter(): PoolFilter {
-    return { corners, edges, faces: net.getSelection() };
+    return { corners, edges, faces: net.getSelection(), wholePiece };
   }
 
   // What the trigger reports is what the *visible* groups control. A face
@@ -237,6 +301,7 @@ export function createControls(): Controls {
       corners: layout.kinds ? corners : true,
       edges: layout.kinds ? edges : true,
       faces: layout.faces ? net.getSelection() : new Set(KEYS),
+      wholePiece: layout.faces && wholePiece,
     };
   }
 
@@ -247,7 +312,12 @@ export function createControls(): Controls {
     const parts: string[] = [];
     if (shown.corners !== shown.edges) parts.push(shown.corners ? "corners" : "edges");
     const on = KEYS.filter((k) => shown.faces.has(k));
-    if (on.length !== KEYS.length) parts.push(on.map(faceLabel).join(""));
+    // "F" vs "F+": the plus is the whole difference between four stickers and
+    // twenty, so the collapsed trigger has to carry it for the same reason it
+    // carries the face list at all.
+    if (on.length !== KEYS.length) {
+      parts.push(on.map(faceLabel).join("") + (shown.wholePiece ? "+" : ""));
+    }
     // Show toggles belong on the trigger too, not just the pool: peek left
     // on is the difference between practising and reading the answers off
     // the cube, and a collapsed panel is exactly where you'd forget it.
@@ -262,8 +332,26 @@ export function createControls(): Controls {
     bArrows.setAttribute("aria-pressed", String(arrows));
     bPeek.setAttribute("aria-pressed", String(peek));
 
+    // Whole-piece only means anything against a narrowed net, so it follows
+    // the net's visibility and greys out until a face is actually deselected.
+    const netNarrow = faceFiltered();
+    bWhole.setAttribute("aria-pressed", String(wholePiece && netNarrow));
+    bWhole.setAttribute("aria-disabled", String(!netNarrow));
+    bWhole.style.opacity = netNarrow ? "1" : "0.4";
+    bWhole.style.cursor = netNarrow ? "pointer" : "default";
+
+    // Rebuilt rather than patched: it's two short rows, and the kind toggles
+    // change how many there are.
+    poolList.textContent = "";
+    if (layout.faces && netNarrow) {
+      if (corners) poolList.appendChild(poolRow("corners", "corner"));
+      if (edges) poolList.appendChild(poolRow("edges", "edge"));
+    }
+
     kindRow.style.display = layout.kinds ? "flex" : "none";
     netWrap.style.display = layout.faces ? "flex" : "none";
+    wholeRow.style.display = layout.faces ? "flex" : "none";
+    poolList.style.display = poolList.childElementCount ? "flex" : "none";
     poolGroup.wrap.style.display = layout.kinds || layout.faces ? "flex" : "none";
     bArrows.style.display = layout.arrows ? "flex" : "none";
     bPeek.style.display = layout.peek ? "flex" : "none";

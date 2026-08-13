@@ -1,14 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { KEYS, type FaceKey } from "../cube/faces";
-import { createCube, scramble } from "../cube/state";
+import { createCube, ringOf, scramble } from "../cube/state";
 import { buildLetters } from "../speffz/letters";
-import { createPicker, freshPool, isFiltered, NO_POOL_FILTER, pickRandom, type PoolFilter } from "./pool";
+import {
+  createPicker,
+  freshPool,
+  isFiltered,
+  NO_POOL_FILTER,
+  pickRandom,
+  poolLetters,
+  type PoolFilter,
+} from "./pool";
 
 const cube = createCube();
 const letters = buildLetters(cube);
 
 function faces(...keys: FaceKey[]): Set<FaceKey> {
   return new Set(keys);
+}
+/** a filter with the defaults filled in, so a case only states what it varies */
+function pool(over: Partial<PoolFilter> = {}): PoolFilter {
+  return { ...NO_POOL_FILTER, ...over };
 }
 function lettersOf(filter: PoolFilter): string {
   return freshPool(cube, filter)
@@ -29,23 +41,23 @@ describe("pool filter", () => {
   });
 
   it("crosses the two axes: edges-only x {F, B} is exactly IJKL QRST", () => {
-    expect(lettersOf({ corners: false, edges: true, faces: faces("Fr", "B") })).toBe("IJKLQRST");
+    expect(lettersOf(pool({ corners: false, faces: faces("Fr", "B") }))).toBe("IJKLQRST");
   });
 
   it("keeps the orbits separate: corners-only x {U} is the corner ABCD, not the edge one", () => {
-    const pool = freshPool(cube, { corners: true, edges: false, faces: faces("U") });
-    expect(pool.map((s) => letters.letterOf(s)).sort().join("")).toBe("ABCD");
-    expect(pool.every((s) => s.kind === "corner")).toBe(true);
+    const drawn = freshPool(cube, pool({ edges: false, faces: faces("U") }));
+    expect(drawn.map((s) => letters.letterOf(s)).sort().join("")).toBe("ABCD");
+    expect(drawn.every((s) => s.kind === "corner")).toBe(true);
   });
 
   it("gives each face its own letter block, four letters per kind", () => {
     KEYS.forEach((key) => {
-      expect(lettersOf({ corners: true, edges: true, faces: faces(key) })).toHaveLength(8);
+      expect(lettersOf(pool({ faces: faces(key) }))).toHaveLength(8);
     });
   });
 
   it("filters by location, not by the colour currently sitting there", () => {
-    const filter: PoolFilter = { corners: true, edges: true, faces: faces("Fr") };
+    const filter = pool({ faces: faces("Fr") });
     const before = lettersOf(filter);
     const scrambled = createCube();
     scramble(scrambled);
@@ -59,16 +71,85 @@ describe("pool filter", () => {
 
   it("reports narrowness on either axis", () => {
     expect(isFiltered(NO_POOL_FILTER)).toBe(false);
-    expect(isFiltered({ corners: true, edges: true, faces: new Set(KEYS) })).toBe(false);
-    expect(isFiltered({ corners: false, edges: true, faces: new Set(KEYS) })).toBe(true);
-    expect(isFiltered({ corners: true, edges: true, faces: faces("U") })).toBe(true);
+    expect(isFiltered(pool())).toBe(false);
+    expect(isFiltered(pool({ corners: false }))).toBe(true);
+    expect(isFiltered(pool({ faces: faces("U") }))).toBe(true);
+  });
+});
+
+// The face set selects cubies instead of stickers: every sticker of any piece
+// touching a chosen face. See PoolFilter.wholePiece — the point is that UF=C
+// and FU=I stop being separable by position within a face.
+describe("whole-piece pool", () => {
+  const WHOLE_F = pool({ faces: faces("Fr"), wholePiece: true });
+
+  it("adds each edge's partner: F edges go from IJKL to IJKL + CFPU", () => {
+    const edgesOnly = { ...WHOLE_F, corners: false };
+    expect(lettersOf({ ...edgesOnly, wholePiece: false })).toBe("IJKL");
+    expect(lettersOf(edgesOnly)).toBe("CFIJKLPU");
+    expect(poolLetters(edgesOnly, "edge")).toEqual({ direct: "IJKL", viaPiece: "CFPU" });
+  });
+
+  it("adds both of each corner's partners: four letters become twelve", () => {
+    const cornersOnly = { ...WHOLE_F, edges: false };
+    expect(lettersOf(cornersOnly)).toBe("CDFGIJKLMPUV");
+    expect(poolLetters(cornersOnly, "corner")).toEqual({ direct: "IJKL", viaPiece: "CDFGMPUV" });
+    // the surprising number, and the reason the panel prints the letters:
+    // one face reaches half of the 24-sticker corner set
+    expect(freshPool(cube, cornersOnly)).toHaveLength(12);
+  });
+
+  it("is closed — every sticker in the pool brings its whole cubie", () => {
+    KEYS.forEach((key) => {
+      const drawn = freshPool(cube, pool({ faces: faces(key), wholePiece: true }));
+      const inPool = new Set(drawn);
+      drawn.forEach((s) => {
+        ringOf(cube, s).forEach((mate) => expect(inPool.has(mate)).toBe(true));
+      });
+    });
+  });
+
+  it("is inert with every face selected", () => {
+    expect(lettersOf(pool({ wholePiece: true }))).toBe(lettersOf(NO_POOL_FILTER));
+    expect(isFiltered(pool({ wholePiece: true }))).toBe(false);
+  });
+
+  it("still filters by location, not by the colour sitting there", () => {
+    const before = lettersOf(WHOLE_F);
+    const scrambled = createCube();
+    scramble(scrambled);
+    const after = freshPool(scrambled, WHOLE_F)
+      .map((s) => buildLetters(scrambled).letterOf(s))
+      .sort()
+      .join("");
+    expect(after).toBe(before);
+  });
+
+  it("does not narrow the pool at all until two *adjacent* faces are off", () => {
+    // A piece only drops out when all of its faces are deselected, and no
+    // cubie lives inside a single face or inside an opposite pair. So these
+    // two look filtered on the net and aren't — which is why isFiltered()
+    // measures the pool rather than reading the filter's fields.
+    const minusU = pool({ faces: faces("L", "Fr", "R", "B", "D"), wholePiece: true });
+    const minusUD = pool({ faces: faces("L", "Fr", "R", "B"), wholePiece: true });
+    expect(freshPool(cube, minusU)).toHaveLength(48);
+    expect(freshPool(cube, minusUD)).toHaveLength(48);
+    expect(isFiltered(minusU)).toBe(false);
+    expect(isFiltered(minusUD)).toBe(false);
+
+    // U and F together do contain a cubie — the UF edge — so its two
+    // stickers, and only those, fall out. The UFL/UFR corners survive on L/R.
+    const minusUF = pool({ faces: faces("L", "R", "B", "D"), wholePiece: true });
+    expect(freshPool(cube, minusUF)).toHaveLength(46);
+    expect(isFiltered(minusUF)).toBe(true);
+    expect(lettersOf({ ...minusUF, corners: false })).toBe("ABDEFGHJKLMNOPQRSTUVWX");
   });
 });
 
 // the tightest pool the filter can produce (corners-only x one face), and so
 // the one where repeat behaviour matters most — 4 stickers means a naive
 // uniform draw repeats 1 question in 4
-const TIGHT: PoolFilter = { corners: true, edges: false, faces: faces("U") };
+const TIGHT: PoolFilter = pool({ edges: false, faces: faces("U") });
 
 describe("pickRandom", () => {
   it("returns null only for an empty pool", () => {

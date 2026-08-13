@@ -431,6 +431,49 @@ with the last corner/edge toggle being sticky, the pool can never actually go
 empty; drills still guard for it, since `freshPool` permits it. Faces map to letter
 blocks U=A–D, L=E–H, F=I–L, R=M–P, B=Q–T, D=U–X.
 
+**Whole-piece mode** (`PoolFilter.wholePiece`, the "whole pieces" toggle under the
+net) switches what the face set selects: *cubies* touching a chosen face, rather
+than stickers whose own home face is chosen. It exists because a face-filtered
+pool has a cheat built in — I J K L are four stickers in one fixed clockwise
+pattern, answerable by counting position within the face without knowing the
+letter. Expanding to the whole cubie forces UF=C vs FU=I, which is the confusion
+that actually bites mid-solve. Still filters on `home`: `ringOf` is keyed on the
+sticker's cell, a fixed position, so the cubie's stickers are the same locations
+scrambled or solved.
+
+Three things about it are counter-intuitive enough to be worth stating:
+
+- **It widens more than "×2".** One face goes 4→8 edge stickers but 4→**12**
+  corner stickers, i.e. half the corner set. It is a mode switch, not a nudge.
+- **Deselecting one face — or an opposite pair — narrows nothing.** A piece only
+  drops out when *all* its faces are deselected, and no cubie fits inside a single
+  face or inside {U,D}. So those pools are quietly still the full 48. `isFiltered`
+  therefore measures `freshPool` rather than reading the filter's fields, or the
+  settings trigger would light over nothing. Two *adjacent* faces off is the first
+  case that removes anything (U+F off drops exactly the UF edge's two stickers).
+- **It's inert with all six faces selected**, so the toggle disables itself there
+  rather than sitting live and doing nothing. Disabled, not hidden — it sits under
+  the net and hiding it would shift the panel on every net tap. The stored value
+  survives, so re-soloing a face restores the choice.
+
+**The panel prints the pool as letters** (`corners IJKL + CDFGMPUV`), extras
+accent-tinted, shown only while a face filter is active. This is deliberately text
+and not a net highlight: whole-piece mode reaches stickers on faces the net draws
+as *deselected* — picking F lights three of U's eight stickers, not U — so no
+shading of a six-square net can describe the result honestly, and a tri-state dim
+would just move the lie. `poolLetters` in `src/drills/pool.ts` returns the split
+(`direct` / `viaPiece`) and answers from a module-local solved cube, since both
+questions are about the filter rather than about any particular cube. The collapsed
+trigger carries a `+` for the same reason it carries the face list at all: `F` and
+`F+` are four stickers versus twenty.
+
+Not built, and deliberately: a sticker-granular net. It's a real idea — it *is* the
+Speffz reference chart, it's the natural home for the per-letter mastery tint below,
+and it would make arbitrary pools ({C, I, J, P}) expressible. But 12×9 cells at a
+tappable size blows the 44 px touch-target rule by 3× on a phone, so it can only
+ever be a *display*, not the control. Pitch it on the chart and the mastery tint;
+the letter list already covers the pool-legibility case for a tenth of the work.
+
 `trace` needs care here: it re-rolls scrambles hunting the weakest letter, and a
 narrow filter makes that hunt likely to exhaust its cap. It then falls back to
 re-rolling until the target is anywhere inside the filter, and a final uncapped loop
