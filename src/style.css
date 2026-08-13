@@ -52,14 +52,19 @@ body {
   touch-action: none;
 }
 
-/* ---- top toggles: corners/edges/arrows/peek ----
-   A floating corner cluster over the canvas, not a dedicated full-width
+/* ---- settings dropdown (src/ui/controls.ts) ----
+   A floating corner control over the canvas, not a dedicated full-width
    row — the same lesson as the letterInput mode dropdown: a handful of
    buttons shouldn't reserve their own empty-looking bar. Icon-only turned
    out too easy to confuse (the corner/edge glyphs are subtly-different
    grids), and opacity-only on/off was too subtle to read at a glance — so
    this keeps the label text and switches on/off to the same accent
-   highlight used everywhere else (tabs, net selection), just compact. */
+   highlight used everywhere else (tabs, net selection), just compact.
+
+   These rules target the trigger button ALONE, never `#top button`: the
+   panel hanging off it contains its own toggles and a face net, and a
+   blanket 30px-tall flex-row rule squashed the net's cells and shoved
+   their letters off-centre. The panel styles itself in controls.ts. */
 #top {
   position: absolute;
   top: calc(8px + env(safe-area-inset-top));
@@ -68,7 +73,7 @@ body {
   display: flex;
   gap: 6px;
 }
-#top button {
+#top .settings-trigger {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -80,7 +85,7 @@ body {
   font-size: 10px;
   letter-spacing: 0.03em;
 }
-#top svg {
+#top .settings-trigger svg {
   width: 13px;
   height: 13px;
   flex: none;

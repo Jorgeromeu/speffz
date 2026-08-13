@@ -13,6 +13,13 @@ const RADIUS: Readonly<Record<FaceKey, string>> = {
 
 export type NetMode = "single" | "multi";
 
+export interface NetOptions {
+  /** square size of one face button, px. The legend's net is compact
+   *  because it sits beside the reference rows; a net inside a tap-driven
+   *  dropdown wants the ≥34px the touch-target rule asks for. */
+  readonly cell?: number;
+}
+
 export interface Net {
   readonly element: HTMLElement;
   /** 0-1 faces in single mode, any subset in multi mode — all-selected in
@@ -28,6 +35,9 @@ export interface Net {
 }
 
 /**
+ * The tap rule, pulled out of the click handler so it can be tested without
+ * a DOM (docs/CONVENTIONS.md calls this rule out as verified by test).
+ *
  * single: tapping a face selects it exclusively; tapping the selected face
  * clears it. (learn's face chips, l2s's "narrow to a face")
  *
@@ -37,11 +47,21 @@ export interface Net {
  * tap plain-toggles, and emptying the net restores no-filter rather than
  * leaving an empty pool. (the drill pool filter)
  */
-export function createNet(mode: NetMode): Net {
+export function nextSelection(mode: NetMode, selected: ReadonlySet<FaceKey>, key: FaceKey): Set<FaceKey> {
+  if (mode === "single") return selected.has(key) ? new Set() : new Set([key]);
+  if (KEYS.every((k) => selected.has(k))) return new Set([key]);
+  const next = new Set(selected);
+  if (next.has(key)) next.delete(key);
+  else next.add(key);
+  return next.size ? next : new Set(KEYS);
+}
+
+export function createNet(mode: NetMode, options: NetOptions = {}): Net {
+  const cell = options.cell ?? 30;
   const element = document.createElement("div");
   element.style.display = "grid";
-  element.style.gridTemplateColumns = "repeat(4, 30px)";
-  element.style.gridAutoRows = "30px";
+  element.style.gridTemplateColumns = `repeat(4, ${cell}px)`;
+  element.style.gridAutoRows = `${cell}px`;
   element.style.gap = "0";
 
   let selected = new Set<FaceKey>(mode === "multi" ? KEYS : []);
@@ -54,6 +74,12 @@ export function createNet(mode: NetMode): Net {
       const on = selected.has(key);
       b.setAttribute("aria-pressed", String(on));
       b.style.boxShadow = on ? "inset 0 0 0 3px var(--accent)" : "inset 0 0 0 1px rgba(13,16,21,.35)";
+      // Multi mode additionally dims the faces that are *out*: it's a pool
+      // filter, so "which faces am I being asked about" has to read at a
+      // glance, and a 3px ring on six saturated squares doesn't. Single
+      // mode keeps every face bright — there, nothing-selected is the
+      // resting state and dimming five of six would read as broken.
+      b.style.opacity = mode === "multi" && !on ? "0.3" : "1";
     });
   }
   function emit(): void {
@@ -72,26 +98,14 @@ export function createNet(mode: NetMode): Net {
     b.style.gridRow = String(GRID[key][0]);
     b.style.gridColumn = String(GRID[key][1]);
     b.style.border = "0";
-    b.style.minHeight = "30px";
+    b.style.minHeight = `${cell}px`;
     b.style.padding = "0";
     b.style.fontSize = "11px";
     b.style.fontWeight = "800";
     b.style.cursor = "pointer";
     b.addEventListener("click", () => {
       if (disabled) return;
-      if (mode === "single") {
-        selected = selected.has(key) ? new Set() : new Set([key]);
-      } else {
-        const noFilter = KEYS.every((k) => selected.has(k));
-        if (noFilter) {
-          selected = new Set([key]);
-        } else {
-          const next = new Set(selected);
-          if (next.has(key)) next.delete(key);
-          else next.add(key);
-          selected = next.size ? next : new Set(KEYS);
-        }
-      }
+      selected = nextSelection(mode, selected, key);
       emit();
     });
     element.appendChild(b);

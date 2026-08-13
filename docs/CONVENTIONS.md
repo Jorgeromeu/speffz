@@ -379,20 +379,57 @@ deliberately constrained.
 Seven tabs: `learn` (reference), `s2l`, `piece`, `l2s`, `trace`, `memo`, `pace`.
 
 Shared controls: corners/edges toggles (label visibility in `learn`, question-pool
-filter elsewhere), arrows overlay (`learn` only), peek (quizzes only). Face net
-chips: focus a single face in `learn`, select a face to answer in `l2s`.
+filter elsewhere), face pool filter, arrows overlay (`learn` only), peek (quizzes
+only). Face net chips — a *separate* thing from the pool filter: focus a single
+face in `learn`, select a face to answer in `l2s`.
 
-**Face pool filter.** A second unfolded net, labelled "pool", restricting which
-faces the drills draw letters from — orthogonal to corners/edges, so edges-only ×
-{green, blue} gives exactly I J K L Q R S T. Hidden in `learn` (the chips already
-isolate faces there) and `memo` (whole-cube memo can't be filtered). State lives in
-`only[faceKey]`, all-true meaning no filter.
+**One settings surface (`src/ui/controls.ts`).** The original scattered these:
+four buttons pinned top-right plus a "pool" net in the drill chrome, each drill
+re-implementing which of them it honours. The port folds all of them into a single
+top-right panel. Two groups, and the split is load-bearing:
 
-Interaction rule, verified by test: first tap on an unfiltered net **solos** that
-face, because training one face is the common want and shouldn't cost five taps.
-After that each tap is a plain toggle, and emptying the net restores no-filter
-rather than leaving an empty pool. Faces map to letter blocks
-U=A–D, L=E–H, F=I–L, R=M–P, B=Q–T, D=U–X.
+- **pool** (corners, edges, faces) changes *what gets asked* → `onPoolChange`, and
+  every drill re-asks. (The original re-asked in `s2l` only, leaving `l2s`/`piece`
+  showing a question the new pool excludes.)
+- **show** (arrows, peek) changes *what you see* → `onDisplayChange`, repaint only.
+
+**Pinned, not collapsed, whenever there's room.** Above 760×560 the panel simply
+sits open in the corner (static flow, no trigger, no drop shadow) — it is small,
+and hiding a handful of toggles behind a tap on a screen with empty space beside
+the cube buys nothing. Below that it becomes a dropdown, and the collapsed trigger
+must then carry the whole state: it lists every non-default setting in panel order
+(`edges · FB · peek`) and is accent-lit while any is active. A hidden panel may not
+hide an active question filter, or you'd wonder why only eight letters ever come
+up — and peek left on is the difference between practising and reading the answers
+off the cube. The media query is live, so a resize flips presentation either way.
+
+The component owns no drill vocabulary. `setLayout()` says which groups are
+relevant and the host decides: `learn` hides the pool net, quizzes hide arrows.
+A tab switch resets *display* only — the pool is a "what am I training today"
+choice and must survive moving between drills. The trigger summarises only what
+the current layout exposes, so a filter carried into `learn` doesn't advertise
+itself where it can't be seen or changed.
+
+**Face pool filter.** Restricts which faces the drills draw letters from —
+orthogonal to corners/edges, so edges-only × {green, blue} gives exactly
+I J K L Q R S T. Hidden in `learn` (the chips already isolate faces there) and
+`memo` (whole-cube memo can't be filtered). The rule itself lives in
+`src/drills/pool.ts` as a pure `PoolFilter` (all six faces = no filter), not inside
+the widget, so all drills share one definition and it is testable without a DOM.
+It filters on a sticker's **home** face, i.e. its location, never the colour
+currently there — a letter labels a location, so "only F" stays I–L on a scrambled
+cube.
+
+Interaction rule, verified by test (`nextSelection` in `src/ui/net.ts`): first tap
+on an unfiltered net **solos** that face, because training one face is the common
+want and shouldn't cost five taps. After that each tap is a plain toggle, and
+emptying the net restores no-filter rather than leaving an empty pool. Multi mode
+also **dims** the out-of-pool faces (single mode never does — nothing-selected is
+its resting state), because a filter has to read at a glance and the selected
+ring alone doesn't carry it. Combined
+with the last corner/edge toggle being sticky, the pool can never actually go
+empty; drills still guard for it, since `freshPool` permits it. Faces map to letter
+blocks U=A–D, L=E–H, F=I–L, R=M–P, B=Q–T, D=U–X.
 
 `trace` needs care here: it re-rolls scrambles hunting the weakest letter, and a
 narrow filter makes that hunt likely to exhaust its cap. It then falls back to

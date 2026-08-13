@@ -12,9 +12,10 @@ import { buildGhosts } from "./render/ghosts";
 import { buildSoloView } from "./render/solo";
 import { buildTiles, paintTile, type Mark } from "./render/tiles";
 import { createView } from "./render/view";
+import { createControls } from "./ui/controls";
 import { createLetterInput, defaultLetterInputMode } from "./ui/letterInput";
 import { createNet } from "./ui/net";
-import { freshPool, pickRandom } from "./drills/pool";
+import { createPicker, freshPool } from "./drills/pool";
 import { createSession } from "./drills/session";
 
 type Mode = "learn" | "s2l" | "l2s" | "piece";
@@ -22,7 +23,16 @@ type Mode = "learn" | "s2l" | "l2s" | "piece";
 // how long the "correct" / "it is X" feedback sits before auto-advancing
 // (s2l, piece — the letter-selection drills). l2s keeps a manual "next"
 // since tapping the wrong sticker benefits from a deliberate look-first beat.
-const AUTO_ADVANCE_MS = 900;
+//
+// Split by outcome: a hit needs only a glance-length confirmation beat, so
+// the drill keeps up with fast recall instead of throttling it, while a miss
+// keeps the longer pause — that's the one you actually have to read and
+// absorb ("you said K — it is N").
+const AUTO_ADVANCE_HIT_MS = 350;
+const AUTO_ADVANCE_MISS_MS = 1200;
+function autoAdvanceMs(correct: boolean): number {
+  return correct ? AUTO_ADVANCE_HIT_MS : AUTO_ADVANCE_MISS_MS;
+}
 
 const canvas = document.getElementById("view") as HTMLCanvasElement;
 const view = createView(canvas);
@@ -40,10 +50,12 @@ const ghosts = buildGhosts(cube, tiles, view.scene);
 const soloView = buildSoloView(cube, view.scene);
 
 // ---- shared state ----
+// Everything the user can toggle across drills — corners/edges, the face
+// pool, arrows, peek — lives in the controls dropdown rather than as loose
+// module-level flags. main.ts reads it; it never shadows it with a copy.
 let mode: Mode = "learn";
-let showCorner = true;
-let showEdge = true;
-let peek = false;
+const controls = createControls();
+document.getElementById("top")!.appendChild(controls.element);
 let faceHighlight: FaceKey | null = null;
 const marks = new Map<Sticker, Mark>();
 const revealed = new Set<Sticker>();
@@ -61,11 +73,10 @@ function setLabelState(lit: boolean, faint: boolean): void {
   repaintTiles();
 }
 
-function showKind(kind: Kind): boolean {
-  if (kind === "corner") return showCorner;
-  if (kind === "edge") return showEdge;
-  return true;
-}
+// Label painting keys off kind only, never the face pool: dimming labels
+// on out-of-pool faces would quietly change what learn and peek show, and
+// the pool filter's job is to pick what gets *asked*, not what's legible.
+const showKind = (kind: Kind): boolean => controls.showKind(kind);
 
 function repaintTiles(): void {
   tiles.forEach((tile) => {
@@ -87,48 +98,34 @@ view.onFrame(() => {
     camera: view.camera,
     mark: (s) => marks.get(s) ?? null,
     revealed: (s) => revealed.has(s),
-    peek,
+    peek: controls.peek(),
     faceHighlight: showFaceHighlight ? faceHighlight : null,
-    showContextLabels: mode === "learn" || peek,
+    showContextLabels: mode === "learn" || controls.peek(),
     showKind,
   });
-  const legend = mode === "learn" || peek;
+  const legend = mode === "learn" || controls.peek();
   setLabelState(!shown && legend, shown && legend);
   soloView.tick(view.camera);
 });
 
-// ---- top toggles: corners / edges / arrows / peek ----
-const bC = document.getElementById("bC")!;
-const bE = document.getElementById("bE")!;
-const bA = document.getElementById("bA")!;
-const bPeek = document.getElementById("bPeek")!;
-
-function onPoolToggleChanged(): void {
+// ---- controls: pool changes re-ask, display changes only repaint ----
+// The old code re-asked on a corners/edges change in s2l alone, which was
+// a gap rather than a decision: narrowing the pool in l2s or piece left a
+// live question that the new pool might exclude. Every drill re-asks now.
+controls.onPoolChange(() => {
   repaintTiles();
   if (mode === "s2l") askS2l();
-}
-bC.addEventListener("click", () => {
-  showCorner = !showCorner;
-  bC.setAttribute("aria-pressed", String(showCorner));
-  onPoolToggleChanged();
+  else if (mode === "l2s") askL2s();
+  else if (mode === "piece") askPiece();
 });
-bE.addEventListener("click", () => {
-  showEdge = !showEdge;
-  bE.setAttribute("aria-pressed", String(showEdge));
-  onPoolToggleChanged();
-});
-bA.addEventListener("click", () => {
-  const on = bA.getAttribute("aria-pressed") !== "true";
-  bA.setAttribute("aria-pressed", String(on));
+controls.onDisplayChange(() => {
   arrowMeshes.forEach((m) => {
-    m.visible = on;
+    m.visible = controls.arrows();
   });
-});
-bPeek.addEventListener("click", () => {
-  peek = !peek;
-  bPeek.setAttribute("aria-pressed", String(peek));
+  // piece draws its answer key into the isolated cubie, so toggling peek
+  // mid-question has to redraw it — the per-frame ghost path can't.
   if (mode === "piece" && quizCur && quizLetter && piecePending) {
-    soloView.show(quizCur, "ask", peek ? quizLetter : "");
+    soloView.show(quizCur, "ask", controls.peek() ? quizLetter : "");
   }
 });
 
@@ -239,6 +236,16 @@ function hideAnswerChrome(): void {
   bGiveUp.classList.add("hide");
 }
 
+// The controls can't currently produce an empty pool — the last kind toggle
+// is sticky and an emptied face net restores no-filter — so this is a guard,
+// not a state the UI steers into. Kept (and worded for the filter rather
+// than for corners/edges alone) because freshPool's contract allows it.
+function sayEmptyPool(): void {
+  elGlyph.textContent = "";
+  elSay.innerHTML = "nothing in the pool — widen the filter to start";
+  hideAnswerChrome();
+}
+
 // ---- letter-input widget (s2l, later piece) — mode switch lives in its
 // own corner dropdown, nothing to wire up here beyond mounting it ----
 const letterInput = createLetterInput(defaultLetterInputMode());
@@ -249,19 +256,21 @@ elAnswer.appendChild(letterInput.element);
 let quizCur: Sticker | null = null;
 let quizLetter: string | null = null;
 const session = createSession();
+// Owns "what did I just ask" so no drill has to remember to avoid an
+// immediate repeat; shared because only one drill is live at a time, and
+// reset alongside `session` on every tab switch.
+const picker = createPicker<Sticker>();
 
 // ---- s2l: a marked sticker on the cube -> identify its letter ----
 function askS2l(): void {
   marks.clear();
   revealed.clear();
-  quizCur = pickRandom(freshPool(cube, showKind));
+  quizCur = picker.next(freshPool(cube, controls.filter()));
   quizLetter = quizCur ? letters.letterOf(quizCur) : null;
   repaintTiles();
 
   if (!quizCur) {
-    elGlyph.textContent = "";
-    elSay.innerHTML = "turn on corners or edges to start";
-    hideAnswerChrome();
+    sayEmptyPool();
     return;
   }
 
@@ -297,7 +306,7 @@ letterInput.onAnswer((result) => {
   // shift. The widget just stays put and re-asks itself.
   setTimeout(() => {
     if (mode === "s2l") askS2l();
-  }, AUTO_ADVANCE_MS);
+  }, autoAdvanceMs(result.correct));
 });
 bNext.addEventListener("click", () => {
   // only l2s still uses a manual "next" — s2l/piece auto-advance instead
@@ -317,14 +326,12 @@ function askL2s(): void {
   net.setSelection(new Set());
   net.setDisabled(false);
   l2sDone = false;
-  quizCur = pickRandom(freshPool(cube, showKind));
+  quizCur = picker.next(freshPool(cube, controls.filter()));
   quizLetter = quizCur ? letters.letterOf(quizCur) : null;
   repaintTiles();
 
   if (!quizCur) {
-    elGlyph.textContent = "";
-    elSay.innerHTML = "turn on corners or edges to start";
-    hideAnswerChrome();
+    sayEmptyPool();
     return;
   }
 
@@ -385,20 +392,18 @@ bGiveUp.addEventListener("click", () => finishL2s(null));
 let piecePending = false;
 
 function askPiece(): void {
-  quizCur = pickRandom(freshPool(cube, showKind));
+  quizCur = picker.next(freshPool(cube, controls.filter()));
   quizLetter = quizCur ? letters.letterOf(quizCur) : null;
   piecePending = true;
 
   if (!quizCur) {
     soloView.hide();
-    elGlyph.textContent = "";
-    elSay.innerHTML = "turn on corners or edges to start";
-    hideAnswerChrome();
+    sayEmptyPool();
     return;
   }
 
   const letter = quizLetter!;
-  soloView.show(quizCur, "ask", peek ? letter : "");
+  soloView.show(quizCur, "ask", controls.peek() ? letter : "");
   elGlyph.textContent = "?";
   elSay.innerHTML = `one <b>${quizCur.kind}</b>, on its own — which letter is the ringed sticker?`;
   elScore.textContent = session.scoreText();
@@ -424,7 +429,7 @@ letterInput.onAnswer((result) => {
   }
   setTimeout(() => {
     if (mode === "piece") askPiece();
-  }, AUTO_ADVANCE_MS);
+  }, autoAdvanceMs(result.correct));
 });
 
 // ---- tabs ----
@@ -435,8 +440,7 @@ function setMode(next: Mode): void {
   TABS.forEach((m) => document.getElementById(`tab-${m}`)!.setAttribute("aria-selected", String(m === mode)));
   faceHighlight = null;
   net.setSelection(new Set());
-  peek = false;
-  bPeek.setAttribute("aria-pressed", "false");
+  controls.resetDisplay();
   marks.clear();
   revealed.clear();
   letterInput.cancel();
@@ -445,6 +449,7 @@ function setMode(next: Mode): void {
   quizCur = null;
   quizLetter = null;
   session.reset();
+  picker.reset();
   elScore.textContent = "";
 
   // legend (ref rows + face net) is shared by learn and l2s, exactly as in
@@ -453,12 +458,20 @@ function setMode(next: Mode): void {
   elLegend.classList.toggle("hide", mode !== "learn" && mode !== "l2s");
   refEl.classList.toggle("hide", mode !== "learn");
   elStatus.classList.toggle("hide", mode === "learn");
-  bA.classList.toggle("hide", mode !== "learn");
-  bPeek.classList.toggle("hide", mode === "learn");
+  // What the dropdown offers is per-mode. The face-pool net is hidden in
+  // learn (docs/CONVENTIONS.md: the legend's own net already isolates a
+  // face there, so a second one would be two nets meaning two things on
+  // one screen); arrows are a learn-only teaching overlay; peek only makes
+  // sense once there's an answer to peek at.
+  controls.setLayout({
+    kinds: true,
+    faces: mode !== "learn",
+    arrows: mode === "learn",
+    peek: mode !== "learn",
+  });
   arrowMeshes.forEach((mesh) => {
     mesh.visible = false;
   });
-  bA.setAttribute("aria-pressed", "false");
 
   solve(cube);
   cubeMesh.updateColours();

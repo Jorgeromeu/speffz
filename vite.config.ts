@@ -9,6 +9,11 @@ import { resolve } from "node:path";
 // of `dist/` (and therefore off Pages) when we build.
 export default defineConfig({
   base: "/speffz/",
+  server: {
+    // NO_HMR=1 turns off hot reload entirely (see `npm run dev:noreload`);
+    // the server still recompiles on demand, you just refresh by hand.
+    hmr: !process.env.NO_HMR,
+  },
   build: {
     rollupOptions: {
       input: {
